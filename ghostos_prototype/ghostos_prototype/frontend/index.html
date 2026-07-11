@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GhostOS — Your Private AI OS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08080c;
+    --panel:#111116;
+    --panel-2:#0d0d12;
+    --card:#15151c;
+    --card-2:#191921;
+    --border:#232330;
+    --border-soft:#1c1c26;
+    --text:#f2f2f5;
+    --text-dim:#9a9aa8;
+    --text-faint:#6b6b7a;
+    --accent:#6d5bf8;
+    --accent-2:#8b7bff;
+    --green:#3ecf7e;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:#26262f;border-radius:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  .icon{width:16px;height:16px;stroke-width:2;}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:10px;
+    color:var(--text-dim);font-size:14px;font-weight:500;
+    cursor:pointer;transition:.15s;
+  }
+  .nav-item:hover{background:#16161e;color:var(--text);}
+  .nav-item.active{
+    background:linear-gradient(135deg,var(--accent),#5645d8);
+    color:#fff;
+  }
+  .chip{
+    background:#1a1a22;border:1px solid var(--border-soft);
+    color:#d8d8e2;font-size:13px;padding:8px 14px;border-radius:9px;
+    display:flex;align-items:center;gap:6px;cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .chip:hover{background:#20202a;border-color:#2c2c3a;}
+  .card{background:var(--card);border:1px solid var(--border-soft);border-radius:14px;}
+  .cat-tile{
+    background:var(--card);border:1px solid var(--border-soft);border-radius:12px;
+    padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;
+  }
+  .cat-tile:hover{border-color:#333344;background:var(--card-2);}
+  .badge{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:12px;color:#fff;}
+  .badge-sm{width:30px;height:30px;border-radius:8px;font-size:10px;}
+  .tab-btn{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text-dim);cursor:pointer;}
+  .tab-btn.active{background:var(--accent);color:#fff;}
+  .row-hover:hover{background:#14141b;}
+  .sidebar-scroll::-webkit-scrollbar{width:0px;}
+  .fade-in{animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+  .titlebar-btn{width:12px;height:12px;color:var(--text-faint);}
+</style>
+</head>
+<body>
+
+<div class="flex h-screen w-full overflow-hidden" style="background:var(--bg)">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="w-[228px] flex-shrink-0 flex flex-col justify-between border-r px-4 py-5" style="border-color:var(--border);background:var(--panel)">
+    <div>
+      <!-- Logo -->
+      <div class="flex items-center gap-3 px-1 mb-7">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#7c6bff,#4c3ce0)">
+          <i data-lucide="ghost" class="icon" style="width:20px;height:20px;color:#fff"></i>
+        </div>
+        <div>
+          <div class="text-[15px] font-bold leading-tight">GhostOS</div>
+          <div class="text-[11px]" style="color:var(--text-faint)">Your Private AI OS</div>
+        </div>
+      </div>
+
+      <!-- Nav -->
+      <nav class="flex flex-col gap-1">
+        <div class="nav-item active" data-screen="assistant" onclick="showScreen('assistant')">
+          <i data-lucide="bot" class="icon"></i> AI Assistant
+        </div>
+        <div class="nav-item" data-screen="timeline" onclick="showScreen('timeline')">
+          <i data-lucide="clock" class="icon"></i> Timeline
+        </div>
+        <div class="nav-item" data-screen="files" onclick="showScreen('files')">
+          <i data-lucide="folder" class="icon"></i> Files &amp; Data
+        </div>
+      </nav>
+    </div>
+
+    <div>
+      <!-- Dynamic stat card -->
+      <div id="sidebar-stats"></div>
+
+      <div class="flex flex-col gap-1 mt-4">
+        <div class="nav-item"><i data-lucide="settings" class="icon"></i> Settings</div>
+        <div class="nav-item"><i data-lucide="help-circle" class="icon"></i> Help</div>
+      </div>
+
+      <div class="flex items-center gap-2 mt-4 px-2 py-2 rounded-xl cursor-pointer" style="background:#16161e" onclick="void(0)">
+        <div id="profile-initials" class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold" style="background:var(--accent)">U</div>
+        <div id="profile-name" class="text-[13px] font-medium flex-1">System User</div>
+        <i data-lucide="chevron-down" class="icon" style="width:14px;height:14px;color:var(--text-faint)"></i>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="flex-1 flex flex-col min-w-0">
+
+    <!-- Top bar -->
+    <header class="flex items-center justify-between px-7 py-4 border-b flex-shrink-0" style="border-color:var(--border)">
+      <div id="topbar-title"></div>
+      <div class="flex items-center gap-4">
+        <div id="connection-badge" class="text-[11px] px-2.5 py-1.5 rounded-lg font-medium" style="background:#211a3a;color:#a89bff">Checking backend...</div>
+        <div id="bg-index-badge" class="hidden text-[11px] px-2.5 py-1.5 rounded-lg font-medium items-center gap-1.5" style="background:#1e1a2e;color:#c9b8ff">
+          <i data-lucide="loader-circle" class="animate-spin" style="width:11px;height:11px"></i>
+          <span id="bg-index-badge-text">Organizing your files…</span>
+        </div>
+        <div class="relative" style="min-width:230px">
+          <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px]" style="background:#15151c;border:1px solid var(--border-soft);color:var(--text-faint)">
+            <i data-lucide="search" class="icon" style="width:15px;height:15px;flex-shrink:0"></i>
+            <input id="topbar-search-input" type="text" placeholder="Search everything..." autocomplete="off"
+              class="flex-1 bg-transparent border-none outline-none text-[13px] min-w-0" style="color:var(--text)"
+              oninput="onSearchInput(this.value)"
+              onkeydown="if(event.key==='Escape'){ this.blur(); closeSearchResults(); }"
+              onfocus="if(this.value.trim()) onSearchInput(this.value)" />
+            <span class="text-[11px] px-1.5 py-0.5 rounded flex-shrink-0" style="background:#20202a">Ctrl K</span>
+          </div>
+          <div id="search-results" class="hidden absolute right-0 top-[calc(100%+6px)] w-[380px] max-h-[420px] overflow-y-auto rounded-xl z-50 card" style="background:var(--panel);border-color:var(--border-soft)"></div>
+        </div>
+        <div class="flex items-center gap-3" style="color:var(--text-faint)">
+          <i data-lucide="minus" class="titlebar-btn"></i>
+          <i data-lucide="square" class="titlebar-btn"></i>
+          <i data-lucide="x" class="titlebar-btn"></i>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex-1 overflow-hidden">
+      <!-- ============ SCREEN 1: AI ASSISTANT ============ -->
+      <div id="screen-assistant" class="fade-in h-full grid grid-cols-[1fr_380px] gap-5 p-6 overflow-y-auto">
+        <div class="flex flex-col gap-5 min-w-0">
+          <div class="card p-8 flex flex-col items-center text-center" id="assistant-card" style="max-height:62vh;overflow:hidden">
+            <div id="assistant-intro" class="flex flex-col items-center text-center w-full flex-shrink-0">
+              <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style="background:linear-gradient(135deg,#7c6bff,#4c3ce0)">
+                <i data-lucide="ghost" class="icon" style="width:26px;height:26px;color:#fff"></i>
+              </div>
+              <div class="text-xl font-bold mb-5">How can I help you?</div>
+              <div class="flex flex-wrap justify-center gap-2 mb-6">
+                <div class="chip" onclick="sendChatMessage('Summarize my day')"><i data-lucide="calendar-days" class="icon" style="width:14px;height:14px"></i>Summarize my day</div>
+                <div class="chip" onclick="sendChatMessage(&quot;Find last week&#39;s invoice&quot;)"><i data-lucide="receipt" class="icon" style="width:14px;height:14px"></i>Find last week's invoice</div>
+                <div class="chip" onclick="sendChatMessage('Open presentation')"><i data-lucide="presentation" class="icon" style="width:14px;height:14px"></i>Open presentation</div>
+                <div class="chip" style="width:36px;justify-content:center"><i data-lucide="more-horizontal" class="icon"></i></div>
+              </div>
+            </div>
+
+            <div id="chat-messages" class="hidden w-full flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 mb-4 text-left"></div>
+
+            <div class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl mb-4 flex-shrink-0" style="background:#1a1a22;border:1px solid var(--border-soft)">
+              <input id="chat-input" type="text" placeholder="Ask anything..." autocomplete="off"
+                class="flex-1 text-left text-[14px] bg-transparent border-none outline-none"
+                style="color:var(--text)"
+                onkeydown="if(event.key==='Enter'){ event.preventDefault(); sendChatMessage(); }" />
+              <input id="chat-file-input" type="file" class="hidden" onchange="handleChatAttachment(this.files[0])" />
+              <i data-lucide="paperclip" class="icon cursor-pointer" title="Attach a file" style="color:var(--text-faint)" onclick="document.getElementById('chat-file-input').click()"></i>
+              <i id="chat-mic-btn" data-lucide="mic" class="icon cursor-pointer" title="Speak" style="color:var(--text-faint)" onclick="toggleVoiceInput()"></i>
+              <div id="chat-send-btn" class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer" style="background:var(--accent)" onclick="sendChatMessage()">
+                <i data-lucide="arrow-up" class="icon" style="width:15px;height:15px;color:#fff"></i>
+              </div>
+            </div>
+
+            <div id="assistant-shortcuts" class="flex flex-wrap justify-center gap-2 mb-4 flex-shrink-0">
+              <div class="chip"><i data-lucide="search" class="icon" style="width:14px;height:14px"></i>Search Files</div>
+              <div class="chip"><i data-lucide="globe" class="icon" style="width:14px;height:14px"></i>Search Web</div>
+              <div class="chip"><i data-lucide="app-window" class="icon" style="width:14px;height:14px"></i>Open App</div>
+              <div class="chip"><i data-lucide="square-pen" class="icon" style="width:14px;height:14px"></i>Create Note</div>
+            </div>
+            <div class="text-[12px] flex-shrink-0" style="color:var(--text-faint)">GhostOS uses AI to understand your computer locally and securely.</div>
+          </div>
+
+          <div class="card p-5 flex-1 flex flex-col min-h-0">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2 text-[15px] font-semibold">
+                <i data-lucide="clock" class="icon"></i> Timeline
+              </div>
+              <div class="text-[13px] cursor-pointer" style="color:var(--text-dim)" onclick="showScreen('timeline')">See all</div>
+            </div>
+            <div class="flex gap-2 mb-4">
+              <div class="tab-btn active">All</div>
+              <div class="tab-btn">Apps</div>
+              <div class="tab-btn">Documents</div>
+              <div class="tab-btn">Web</div>
+              <div class="tab-btn">System</div>
+            </div>
+            <div class="text-[12px] font-semibold mb-2" style="color:var(--text-faint)">Today</div>
+            <div class="flex flex-col" id="mini-timeline"></div>
+          </div>
+        </div>
+
+        <!-- Files & Data side panel -->
+        <div class="card p-5 flex flex-col min-h-0 overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 text-[15px] font-semibold">
+              <i data-lucide="folder" class="icon"></i> Files &amp; Data
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="connect-btn" onclick="openConnectModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium" style="background:#16211b;color:var(--green);border:1px solid #1d3a29">
+                <i data-lucide="refresh-cw" class="icon" style="width:12px;height:12px"></i> Connect to System
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style="background:#1a1a22;border:1px solid var(--border-soft)">
+            <i data-lucide="search" class="icon" style="width:14px;height:14px;color:var(--text-faint);flex-shrink:0"></i>
+            <input id="files-panel-search-input" type="text" placeholder="Search files, folders, content..." autocomplete="off"
+              class="flex-1 bg-transparent border-none outline-none text-[13px] min-w-0" style="color:var(--text)"
+              oninput="onFilesPanelSearchInput(this.value)" />
+          </div>
+
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[13px] font-semibold" style="color:var(--text-dim)">Categories</div>
+            <div class="text-[12px] cursor-pointer" style="color:var(--accent-2)" onclick="showScreen('files'); clearFileFilter()">View all</div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mb-4" id="categories-mini"></div>
+
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[13px] font-semibold" style="color:var(--text-dim)">AI Collections</div>
+            <div class="text-[12px] cursor-pointer" style="color:var(--accent-2)" onclick="showScreen('files')">View all</div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mb-4" id="collections-mini"></div>
+
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[13px] font-semibold" style="color:var(--text-dim)">Recent Files</div>
+            <div class="text-[12px] cursor-pointer" style="color:var(--accent-2)" onclick="showScreen('files'); clearFileFilter()">View all</div>
+          </div>
+          <div class="flex flex-col gap-1" id="recent-mini"></div>
+        </div>
+      </div>
+
+      <!-- ============ SCREEN 2: TIMELINE ============ -->
+      <div id="screen-timeline" class="fade-in hidden h-full grid grid-cols-[1fr_420px] gap-5 p-6 overflow-hidden">
+        <div class="flex flex-col min-h-0">
+          <div class="flex items-center justify-between mb-4 flex-shrink-0">
+            <div class="flex items-center gap-3">
+              <i data-lucide="chevron-left" class="icon cursor-pointer" style="color:var(--text-faint)" onclick="changeTimelineDay(-1)"></i>
+              <label class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] font-medium cursor-pointer" style="background:var(--card);border:1px solid var(--border-soft)" onclick="document.getElementById('timeline-date-input').showPicker()">
+                <i data-lucide="calendar" class="icon" style="width:14px;height:14px"></i>
+                <span id="timeline-date-label">Today</span>
+                <input id="timeline-date-input" type="date" class="absolute opacity-0 pointer-events-none" onchange="setTimelineDate(this.value)" />
+              </label>
+              <i data-lucide="chevron-right" class="icon cursor-pointer" style="color:var(--text-faint)" onclick="changeTimelineDay(1)"></i>
+            </div>
+            <div class="flex items-center gap-1 p-1 rounded-lg" style="background:var(--card);border:1px solid var(--border-soft)">
+              <div class="tab-btn active">Day</div>
+              <div class="tab-btn">Week</div>
+              <div class="tab-btn">Month</div>
+            </div>
+          </div>
+          <div class="text-[13px] font-semibold mb-3" style="color:var(--accent-2)">Today</div>
+          <div class="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1" id="full-timeline"></div>
+        </div>
+
+        <!-- Detail panel - filled by renderEventDetail(event), see script -->
+        <div class="card flex flex-col min-h-0 overflow-hidden" id="timeline-detail-panel"></div>
+      </div>
+
+      <!-- ============ SCREEN 3: FILES & DATA ============ -->
+      <div id="screen-files" class="fade-in hidden h-full grid grid-cols-[220px_1fr_340px] gap-5 p-6 overflow-hidden">
+        <!-- left categories -->
+        <div class="flex flex-col min-h-0 overflow-y-auto pr-1">
+          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">Categories</div>
+          <div class="flex flex-col gap-0.5 mb-4" id="full-categories"></div>
+
+          <div class="card p-3 mb-3">
+            <div class="text-[11px] font-semibold mb-1.5" style="color:var(--text-faint)">SYSTEM STATUS</div>
+            <div class="flex items-center gap-1.5 text-[13px] font-medium" style="color:var(--green)">
+              <i data-lucide="check-circle-2" class="icon" style="width:14px;height:14px"></i> Connected
+            </div>
+            <div class="text-[11px] mt-0.5" style="color:var(--text-faint)">All systems are up to date</div>
+          </div>
+
+          <div class="card p-3">
+            <div class="text-[11px] font-semibold mb-2" style="color:var(--text-faint)">STORAGE OVERVIEW</div>
+            <div class="flex items-center justify-center my-2">
+              <div class="relative w-[100px] h-[100px] rounded-full flex items-center justify-center"
+                   style="background:conic-gradient(#6d5bf8 0% 25%, #3ecf7e 25% 44%, #ff5c8a 44% 57%, #4b4b58 57% 100%)">
+                <div class="w-[70px] h-[70px] rounded-full flex flex-col items-center justify-center" style="background:var(--card)">
+                  <div class="text-[16px] font-bold">512</div>
+                  <div class="text-[9px]" style="color:var(--text-faint)">GB Used</div>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-1.5 mt-2 text-[11px]">
+              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#6d5bf8"></span>Documents</span><span style="color:var(--text-faint)">128 GB</span></div>
+              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#3ecf7e"></span>Images</span><span style="color:var(--text-faint)">96 GB</span></div>
+              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#ff5c8a"></span>Videos</span><span style="color:var(--text-faint)">64 GB</span></div>
+              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#4b4b58"></span>Others</span><span style="color:var(--text-faint)">224 GB</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- center -->
+        <div class="flex flex-col min-h-0 overflow-y-auto pr-1">
+          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">AI Collections <span class="float-right text-[12px] font-normal cursor-pointer" style="color:var(--accent-2)" onclick="activeCollectionFilter=null; renderCollectionsFull()">View all</span></div>
+          <div class="grid grid-cols-5 gap-2 mb-5" id="collections-full"></div>
+
+          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">Recent Files <span class="float-right text-[12px] font-normal cursor-pointer" style="color:var(--accent-2)" onclick="clearFileFilter()">View all</span></div>
+          <div class="card overflow-hidden mb-5">
+            <table class="w-full text-[13px]">
+              <thead>
+                <tr class="text-left" style="color:var(--text-faint)">
+                  <th class="font-medium px-4 py-2.5">Name</th>
+                  <th class="font-medium px-4 py-2.5">Category</th>
+                  <th class="font-medium px-4 py-2.5">Location</th>
+                  <th class="font-medium px-4 py-2.5">Modified</th>
+                  <th class="font-medium px-4 py-2.5">Size</th>
+                  <th class="px-3 py-2.5"></th>
+                </tr>
+              </thead>
+              <tbody id="recent-full"></tbody>
+            </table>
+          </div>
+
+          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">Quick Access by Type <i data-lucide="chevron-right" class="icon inline" style="width:13px;height:13px"></i></div>
+          <div class="grid grid-cols-4 gap-2" id="quick-access"></div>
+        </div>
+
+        <!-- right file detail -->
+        <div class="card flex flex-col min-h-0 overflow-y-auto p-4" id="file-detail-panel"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ CONNECT TO SYSTEM MODAL ============ -->
+<div id="connect-modal" class="hidden fixed inset-0 z-50 items-center justify-center" style="background:rgba(4,4,8,0.65)" onclick="if(event.target.id==='connect-modal') closeConnectModal()">
+  <div class="card w-[440px] p-6" style="background:var(--panel)">
+    <div class="flex items-center gap-3 mb-1">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,#7c6bff,#4c3ce0)">
+        <i data-lucide="scan-line" class="icon" style="width:18px;height:18px;color:#fff"></i>
+      </div>
+      <div class="text-[15px] font-bold">Connect to System</div>
+    </div>
+
+    <!-- Step 1: one-time permission preview, no text input -->
+    <div id="connect-permission-step">
+      <div class="text-[12.5px] mb-4" style="color:var(--text-faint)">
+        GhostOS will connect instantly, then organize your standard folders (plus VS Code projects and Git repos) in the background while you use it. Everything stays on this machine — nothing is uploaded.
+      </div>
+      <div id="connect-folder-preview" class="flex flex-col gap-1.5 mb-4"></div>
+      <label class="flex items-start gap-2.5 mb-5 px-3 py-2.5 rounded-lg cursor-pointer" style="background:#191921;border:1px solid var(--border-soft)">
+        <input type="checkbox" id="scan-drives-checkbox" class="mt-0.5" style="accent-color:var(--accent)">
+        <span class="text-[12px]" style="color:var(--text-dim)">
+          <span class="font-medium" style="color:var(--text)">Advanced: also scan entire drives</span><br>
+          Slower and includes more system clutter (installers, caches). Off by default to keep results private and relevant — your standard folders, VS Code projects, and Git repos are always enough for most people.
+        </span>
+      </label>
+      <div class="flex items-center justify-end gap-2">
+        <div class="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer" style="background:#1a1a22;border:1px solid var(--border-soft);color:var(--text-dim)" onclick="closeConnectModal()">Cancel</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-medium cursor-pointer flex items-center gap-2" style="background:var(--accent);color:#fff" onclick="startConnectSystem()">
+          <i data-lucide="scan-line" class="icon" style="width:13px;height:13px"></i> Connect
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: live scanning progress, streamed from the backend -->
+    <div id="connect-progress-step" class="hidden">
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1.5">
+          <span id="connect-progress-label" class="text-[12px] font-medium" style="color:var(--text-dim)">Starting scan…</span>
+          <span id="connect-progress-percent" class="text-[12px] font-semibold" style="color:var(--accent-2)">0%</span>
+        </div>
+        <div style="height:6px;border-radius:6px;background:#1d1d26;overflow:hidden">
+          <div id="connect-progress-bar" style="height:100%;width:2%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .35s ease;border-radius:6px"></div>
+        </div>
+      </div>
+      <div id="connect-progress-list" class="flex flex-col gap-2.5 text-[13px]" style="max-height:220px;overflow-y-auto"></div>
+    </div>
+
+    <!-- Step 3: done state - no auto-close, user confirms with Continue -->
+    <div id="connect-done-step" class="hidden flex-col items-center text-center py-2">
+      <div class="w-14 h-14 rounded-full flex items-center justify-center mb-3" style="background:#16211b">
+        <i data-lucide="check-circle-2" class="icon" style="width:28px;height:28px;color:var(--green)"></i>
+      </div>
+      <div class="text-[15px] font-bold mb-1">Connected</div>
+      <div id="connect-done-summary" class="text-[12.5px] mb-5" style="color:var(--text-faint)"></div>
+      <div class="w-full px-4 py-2.5 rounded-lg text-[13.5px] font-semibold cursor-pointer text-center" style="background:var(--accent);color:#fff" onclick="continueToDashboard()">Continue</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl text-[13px] font-medium max-w-[360px]" style="background:var(--card);border:1px solid var(--border-soft);color:var(--text)"></div>
+
+<script>
+const FILE_TYPES = {
+  pdf:{label:'PDF Document',color:'#e5342e',icon:'file-text'},
+  docx:{label:'Word',color:'#2b579a',icon:'file-text'},
+  xlsx:{label:'Excel',color:'#217346',icon:'file-spreadsheet'},
+  pptx:{label:'PowerPoint',color:'#d24726',icon:'presentation'},
+  image:{label:'Image',color:'#8b5cf6',icon:'image'},
+  video:{label:'Video',color:'#6d5bf8',icon:'video'},
+  audio:{label:'Audio',color:'#ec4899',icon:'music'},
+  code:{label:'Code',color:'#22c1c3',icon:'code-2'},
+  archive:{label:'Archive',color:'#f0a020',icon:'archive'},
+  db:{label:'Database',color:'#14b8a6',icon:'database'},
+  txt:{label:'Text',color:'#8a8a99',icon:'file'},
+};
+function fileBadge(type,size=38){
+  const t=FILE_TYPES[type]||FILE_TYPES.txt;
+  const iconSize = size<=32?14:18;
+  return `<div class="badge" style="width:${size}px;height:${size}px;background:${t.color}22;color:${t.color};border:1px solid ${t.color}44">
+    <i data-lucide="${t.icon}" style="width:${iconSize}px;height:${iconSize}px;stroke-width:2"></i></div>`;
+}
+function appBadge(app,size=34){
+  const map={
+    excel:{c:'#217346',l:'X'}, word:{c:'#2b579a',l:'W'}, edge:{c:'#33b0e6',l:'e'},
+    teams:{c:'#5b5fc7',l:'T'}, acrobat:{c:'#e5342e',l:'A'}, outlook:{c:'#0072c6',l:'O'},
+    explorer:{c:'#f0a020',l:'📁'}, chrome:{c:'#ef5350',l:'C'}, vscode:{c:'#2196f3',l:'</>'},
+    youtube:{c:'#ff0000',l:'▶'}, system:{c:'#8a8a99',l:'S'}, figma:{c:'#a259ff',l:'F'}
+  };
+  const a=map[app]||map.system;
+  return `<div class="badge" style="width:${size}px;height:${size}px;background:${a.c}22;color:${a.c};border:1px solid ${a.c}44;font-size:12px">${a.l}</div>`;
+}
+
+// ---------- DATA ----------
+const categories = [
+  {name:'Documents',count:'32,104',type:'docx'},{name:'PDFs',count:'18,732',type:'pdf'},
+  {name:'Excel',count:'7,912',type:'xlsx'},{name:'Word',count:'5,241',type:'docx'},
+  {name:'Presentations',count:'3,245',type:'pptx'},{name:'Images',count:'45,231',type:'image'},
+  {name:'Videos',count:'3,214',type:'video'},{name:'Audio',count:'1,423',type:'audio'},
+  {name:'Code',count:'8,452',type:'code'},{name:'Archives',count:'2,152',type:'archive'},
+  {name:'Databases',count:'621',type:'db'},{name:'Others',count:'9,927',type:'txt'},
+];
+const collections = [
+  {name:'Work',count:'12,428 files',icon:'briefcase',c:'#6d5bf8'},
+  {name:'College',count:'8,756 files',icon:'graduation-cap',c:'#3b82f6'},
+  {name:'Personal',count:'15,231 files',icon:'user',c:'#a855f7'},
+  {name:'Finance',count:'4,321 files',icon:'dollar-sign',c:'#3ecf7e'},
+  {name:'Projects',count:'6,875 files',icon:'folder',c:'#f0a020'},
+];
+const recentFiles = [
+  {name:'Quarterly_Report.xlsx',cat:'Excel',type:'xlsx',loc:'D:\\Work\\Reports',time:'Today, 10:15 AM',size:'24 KB'},
+  {name:'Marketing Plan.docx',cat:'Documents',type:'docx',loc:'D:\\Work\\Plans',time:'Today, 10:42 AM',size:'48 KB'},
+  {name:'Budget_2024.xlsx',cat:'Excel',type:'xlsx',loc:'D:\\Work\\Finance',time:'Today, 12:30 PM',size:'33 KB'},
+  {name:'Proposal.pdf',cat:'PDFs',type:'pdf',loc:'D:\\Work\\Proposals',time:'Today, 01:10 PM',size:'2.4 MB'},
+];
+const timelineEvents = [
+  {time:'09:15 AM',app:'word',title:'Opened Marketing Strategy.docx',sub:'D:\\Work\\Marketing\\',right:'Microsoft Word',dur:'12m 45s'},
+  {time:'09:28 AM',app:'edge',title:'Visited docs.google.com',sub:'',right:'Google Docs',dur:'8m 32s'},
+  {time:'09:47 AM',app:'excel',title:'Edited Budget_2024.xlsx',sub:'D:\\Work\\Finance\\',right:'Microsoft Excel',dur:'23m 14s'},
+  {time:'10:15 AM',app:'teams',title:'Teams Meeting',sub:'Project Sync – Weekly Update',right:'Microsoft Teams',dur:'45m 22s'},
+  {time:'11:05 AM',app:'acrobat',title:'Viewed Proposal.pdf',sub:'D:\\Work\\Proposals\\',right:'Adobe Acrobat',dur:'6m 18s'},
+  {time:'11:20 AM',app:'explorer',title:'Opened 3 files in Project_Alpha',sub:'D:\\Work\\Project_Alpha\\',right:'File Explorer',dur:'14m 05s',
+    children:[{icon:'word',name:'Requirements.docx'},{icon:'pptx',name:'Architecture.pptx'},{icon:'excel',name:'Roadmap.xlsx'}]},
+  {time:'12:10 PM',app:'chrome',title:'Visited figma.com',sub:'Figma – UI Design',right:'Google Chrome',dur:'18m 40s'},
+  {time:'12:45 PM',app:'system',title:'Screenshot captured',sub:'Screenshot_2024-05-14_12-45-22.png',right:'System',dur:''},
+  {time:'01:30 PM',app:'vscode',title:'Edited app.py',sub:'D:\\Code\\GhostOS\\app.py',right:'VS Code',dur:'32m 11s'},
+  {time:'02:05 PM',app:'youtube',title:'Watched YouTube',sub:'Building a RAG system with LlamaIndex',right:'YouTube',dur:'22m 37s'},
+  {time:'02:45 PM',app:'outlook',title:'Replied to email',sub:'Re: Project Update',right:'Microsoft Outlook',dur:'5m 08s'},
+];
+const miniTimeline = [
+  {time:'10:15 AM',type:'xlsx',title:'Opened Quarterly_Report.xlsx',right:'Excel'},
+  {time:'10:42 AM',type:'docx',title:'Edited Marketing Plan.docx',right:'Word'},
+  {time:'11:05 AM',type:'txt',title:'Visited docs.microsoft.com',right:'Edge'},
+  {time:'11:45 AM',type:'txt',title:'Meeting: Project Sync',right:'Microsoft Teams'},
+  {time:'12:30 PM',type:'xlsx',title:'Opened Budget_2024.xlsx',right:'Excel'},
+  {time:'01:10 PM',type:'pdf',title:'Viewed Proposal.pdf',right:'Adobe Reader'},
+  {time:'02:00 PM',type:'txt',title:'Email from Rahul: Re: Proposal',right:'Outlook'},
+  {time:'03:15 PM',type:'pptx',title:'Worked on Presentation.pptx',right:'PowerPoint'},
+];
+
+const sidebarStats = {
+  assistant:{title:null,items:[['Files Indexed','128,456'],['Documents','32,104'],['Images','45,231'],['Videos','3,214'],['Audio','1,423'],['Others','46,484']]},
+  timeline:{title:null,items:[['Events Today','342'],['Apps Used','28'],['Files Opened','67'],['Websites','45'],['Documents','23'],['Screenshots','12']]},
+  files:{title:null,items:[]}
+};
+
+// ---------- RENDER ----------
+function renderSidebarStats(screen){
+  const box=document.getElementById('sidebar-stats');
+  const s=sidebarStats[screen];
+  let html=`<div class="card p-3 mb-3">
+    <div class="flex items-center gap-2 mb-1">
+      <i data-lucide="shield-check" class="icon" style="width:15px;height:15px;color:var(--green)"></i>
+      <div class="text-[13px] font-semibold">System Connected</div>
+    </div>
+    <div class="text-[11px]" style="color:var(--text-faint)">All systems are up to date</div>
+  </div>`;
+  if(s.items.length){
+    html+=`<div class="flex flex-col gap-2 px-1 text-[13px]">`;
+    s.items.forEach(([k,v])=>{
+      html+=`<div class="flex justify-between"><span style="color:var(--text-faint)">${k}</span><span class="font-medium">${v}</span></div>`;
+    });
+    html+=`</div>`;
+  }
+  box.innerHTML=html;
+}
+
+function renderTopbar(screen){
+  const t=document.getElementById('topbar-title');
+  if(screen==='assistant'){
+    t.innerHTML=`<div class="text-[19px] font-bold">Hello, Arjun 👋</div><div class="text-[13px]" style="color:var(--text-faint)">How can I help you today?</div>`;
+  } else if(screen==='timeline'){
+    t.innerHTML=`<div class="text-[19px] font-bold">Timeline</div><div class="text-[13px]" style="color:var(--text-faint)">Your activity history organized chronologically</div>`;
+  } else {
+    t.innerHTML=`<div class="flex items-center gap-2 text-[19px] font-bold"><i data-lucide="folder" class="icon" style="width:18px;height:18px"></i>Files &amp; Data</div><div class="text-[13px]" style="color:var(--text-faint)">All your files, automatically organized and always at your fingertips.</div>`;
+  }
+  lucide.createIcons();
+}
+
+function renderMiniTimeline(){
+  document.getElementById('mini-timeline').innerHTML = miniTimeline.map((e,i)=>`
+    <div class="flex items-center gap-3 py-2.5 border-b row-hover cursor-pointer" style="border-color:var(--border-soft)" onclick="showScreen('timeline'); selectTimelineEvent(${i})">
+      <div class="text-[12px] w-[70px] flex-shrink-0" style="color:var(--text-faint)">${e.time}</div>
+      ${fileBadge(e.type,26)}
+      <div class="text-[13px] flex-1 truncate">${escapeHtml(e.title)}</div>
+      <div class="text-[12px]" style="color:var(--text-faint)">${escapeHtml(e.right||'')}</div>
+    </div>`).join('');
+}
+
+let activeCategoryFilter = null;
+let activeCollectionFilter = null;
+
+// Clicking a Categories or AI Collections tile - either mini (dashboard
+// sidebar) or full (Files & Data screen) - calls /api/recent-files with
+// that category/collection as a filter (see app.py + vectorstore.py) and
+// swaps the Recent Files list to show just that bucket instead of the
+// newest files overall.
+async function filterByCategory(name){
+  showScreen('files');
+  activeCategoryFilter = name;
+  activeCollectionFilter = null;
+  await applyFileFilter(`category=${encodeURIComponent(name)}`, name);
+}
+async function filterByCollection(name){
+  showScreen('files');
+  activeCollectionFilter = name;
+  activeCategoryFilter = null;
+  await applyFileFilter(`collection=${encodeURIComponent(name)}`, name);
+}
+async function applyFileFilter(queryParam, label){
+  try{
+    const separator = queryParam ? `${queryParam}&` : '';
+    const data = await apiGet(`/api/recent-files?${separator}limit=5000`, 15000);
+    recentFiles.length = 0;
+    data.forEach(f => recentFiles.push({
+      name:f.name, cat:f.category, type:nameToBadgeType(f.category),
+      loc:f.path.substring(0,f.path.length-f.name.length-1), time:formatTimeAgo(f.modified_at), size:formatBytes(f.size_bytes),
+      path:f.path, extension:f.extension, size_bytes:f.size_bytes, modified_at:f.modified_at,
+    }));
+    renderRecentFull();
+    renderFullCategories();
+    renderCollectionsFull();
+    renderRecentMini();
+    lucide.createIcons();
+    showToast(`Showing ${recentFiles.length} file${recentFiles.length===1?'':'s'} in ${label}`, false);
+  } catch(err){
+    showToast("Couldn't reach the GhostOS backend.", true);
+    console.error('Category filter error:', err);
+  }
+}
+function clearFileFilter(){
+  activeCategoryFilter = null;
+  activeCollectionFilter = null;
+  applyFileFilter('', 'All Files');
+}
+
+function renderCategoriesMini(){
+  document.getElementById('categories-mini').innerHTML = categories.slice(0,4).map(c=>`
+    <div class="cat-tile cursor-pointer" style="padding:10px" onclick="filterByCategory('${c.name.replace(/'/g,"\\'")}')">
+      ${fileBadge(c.type,30)}
+      <div><div class="text-[12px] font-medium">${c.name}</div><div class="text-[11px]" style="color:var(--text-faint)">${c.count}</div></div>
+    </div>`).join('');
+}
+function renderCollectionsMini(){
+  document.getElementById('collections-mini').innerHTML = collections.slice(0,4).map(c=>`
+    <div class="cat-tile cursor-pointer" style="padding:10px" onclick="filterByCollection('${c.name.replace(/'/g,"\\'")}')">
+      <div class="badge" style="width:30px;height:30px;background:${c.c}22;color:${c.c}"><i data-lucide="${c.icon}" style="width:14px;height:14px"></i></div>
+      <div><div class="text-[12px] font-medium">${c.name}</div><div class="text-[11px]" style="color:var(--text-faint)">${c.count}</div></div>
+    </div>`).join('');
+}
+function renderRecentMini(){
+  document.getElementById('recent-mini').innerHTML = recentFiles.slice(0,8).map((f,i)=>`
+    <div class="flex items-center gap-3 py-2 row-hover rounded-lg px-1 cursor-pointer" onclick="showScreen('files'); selectFile(recentFiles[${i}])">
+      ${fileBadge(f.type,28)}
+      <div class="min-w-0 flex-1"><div class="text-[12px] font-medium truncate">${escapeHtml(f.name)}</div><div class="text-[11px] truncate" style="color:var(--text-faint)">${escapeHtml(f.loc)}</div></div>
+    </div>`).join('');
+}
+
+function renderFullTimeline(){
+  document.getElementById('full-timeline').innerHTML = timelineEvents.map((e,i)=>`
+    <div class="flex items-start gap-4 py-3 px-2 rounded-lg row-hover cursor-pointer border-b" style="border-color:var(--border-soft);${i===selectedTimelineIdx?'background:#16161e':''}" onclick="selectTimelineEvent(${i})">
+      <div class="text-[12px] w-[68px] flex-shrink-0 pt-1.5" style="color:var(--text-faint)">${e.time}</div>
+      <div class="w-2 h-2 rounded-full mt-2.5 flex-shrink-0" style="background:var(--accent)"></div>
+      <div class="flex-shrink-0">${appBadge(e.app,32)}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-[13px] font-medium">${escapeHtml(e.title)}</div>
+        ${e.sub?`<div class="text-[11px] truncate" style="color:var(--text-faint)">${escapeHtml(e.sub)}</div>`:''}
+        ${e.children?`<div class="mt-2 rounded-lg p-2 flex flex-col gap-1" style="background:#191921">${e.children.map(c=>`
+          <div class="flex items-center gap-2 text-[12px]" style="color:var(--text-dim)">${fileBadge(c.icon,20)}<span>${escapeHtml(c.name)}</span></div>`).join('')}</div>`:''}
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="text-[12px]" style="color:var(--text-faint)">${escapeHtml(e.right||'')}</div>
+        ${e.dur?`<div class="text-[11px]" style="color:var(--text-faint)">${e.dur}</div>`:''}
+      </div>
+      <i data-lucide="more-vertical" class="icon flex-shrink-0" style="width:14px;height:14px;color:var(--text-faint)"></i>
+    </div>`).join('');
+  lucide.createIcons();
+}
+
+function renderFullCategories(){
+  const totalCount = categories.reduce((s,c)=>s + (parseInt(String(c.count).replace(/,/g,''),10) || 0), 0);
+  const allActive = !activeCategoryFilter && !activeCollectionFilter;
+  document.getElementById('full-categories').innerHTML =
+    `<div class="flex items-center justify-between px-2 py-2 rounded-lg mb-1 cursor-pointer" style="background:${allActive?'var(--accent)':'#1a1a22'};color:${allActive?'#fff':'var(--text-dim)'}" onclick="clearFileFilter()"><span class="text-[13px] font-medium">All Files</span><span class="text-[12px]">${totalCount.toLocaleString()}</span></div>` +
+    categories.map(c=>`
+    <div class="flex items-center justify-between px-2 py-2 rounded-lg row-hover cursor-pointer" style="${activeCategoryFilter===c.name?'background:#16161e':''}" onclick="filterByCategory('${c.name.replace(/'/g,"\\'")}')">
+      <span class="text-[13px]" style="color:var(--text-dim)">${c.name}</span>
+      <span class="text-[12px]" style="color:var(--text-faint)">${c.count}</span>
+    </div>`).join('');
+}
+function renderCollectionsFull(){
+  document.getElementById('collections-full').innerHTML = collections.map(c=>`
+    <div class="cat-tile flex-col items-start gap-3 cursor-pointer" style="padding:14px;${activeCollectionFilter===c.name?'border-color:var(--accent-2)':''}" onclick="filterByCollection('${c.name.replace(/'/g,"\\'")}')">
+      <div class="badge" style="background:${c.c}22;color:${c.c}"><i data-lucide="${c.icon}" style="width:17px;height:17px"></i></div>
+      <div><div class="text-[13px] font-semibold">${c.name}</div><div class="text-[11px]" style="color:var(--text-faint)">${c.count}</div></div>
+    </div>`).join('');
+}
+function renderRecentFull(){
+  document.getElementById('recent-full').innerHTML = recentFiles.map((f,i)=>`
+    <tr class="row-hover border-t cursor-pointer" style="border-color:var(--border-soft)" onclick="selectFile(recentFiles[${i}])">
+      <td class="px-4 py-2.5"><div class="flex items-center gap-2.5">${fileBadge(f.type,26)}<span class="font-medium">${escapeHtml(f.name)}</span></div></td>
+      <td class="px-4 py-2.5" style="color:var(--text-dim)">${escapeHtml(f.cat)}</td>
+      <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.loc)}</td>
+      <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.time)}</td>
+      <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.size)}</td>
+      <td class="px-3 py-2.5"><i data-lucide="more-vertical" class="icon" style="width:14px;height:14px;color:var(--text-faint)"></i></td>
+    </tr>`).join('');
+}
+function renderQuickAccess(){
+  const types=['pdf','xlsx','docx','image','video','audio'];
+  document.getElementById('quick-access').innerHTML = categories.filter(c=>types.includes(c.type)).map(c=>`
+    <div class="cat-tile flex-col items-start gap-2 cursor-pointer" style="padding:12px" onclick="filterByCategory('${c.name.replace(/'/g,"\\'")}')">
+      ${fileBadge(c.type,30)}
+      <div><div class="text-[12px] font-medium">${c.name}</div><div class="text-[11px]" style="color:var(--text-faint)">${c.count} files</div></div>
+    </div>`).join('');
+}
+// renderFileDetail(file) / renderEventDetail(event) both take a real data
+// object (from recentFiles[]/timelineEvents[] - which are populated from
+// the backend in loadRealData(), see below) and render it. No more
+// hardcoded "Project_Proposal.pdf" / tags / fake collaborators - if the
+// backend hasn't given us a piece of info (pages, author, etc.), we just
+// don't show that row rather than making something up.
+let selectedFile = null;
+let selectedTimelineIdx = null;
+
+function formatFullDateTime(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d)) return iso;
+  return d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',weekday:'short', year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+}
+
+async function openTarget(target){
+  if(!target) return;
+  try{
+    const res = await fetch(API_BASE + '/api/open', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target})
+    });
+    if(!res.ok) throw new Error((await res.json()).error || `Open failed (${res.status})`);
+  } catch(err){
+    showToast(`Could not open: ${err.message}`, true);
+  }
+}
+
+function selectFile(file){
+  selectedFile = file;
+  showScreen('files');
+  renderFileDetail(file);
+  if(file && file.path) openTarget(file.path);
+}
+
+function askAboutItem(name){
+  showScreen('assistant');
+  sendChatMessage(`Tell me about ${name}`);
+}
+
+function renderFileDetail(file){
+  const panel = document.getElementById('file-detail-panel');
+  if(!file){
+    panel.innerHTML = `<div class="h-full flex items-center justify-center text-[13px] text-center p-6" style="color:var(--text-faint)">Select a file from the list to see its details.</div>`;
+    return;
+  }
+  const badgeType = nameToBadgeType(file.category || '');
+  const typeLabel = (FILE_TYPES[badgeType] || FILE_TYPES.txt).label;
+  const sizeLabel = file.size_bytes != null ? formatBytes(file.size_bytes) : (file.size || '—');
+  const modifiedLabel = file.modified_at ? formatFullDateTime(file.modified_at) : (file.time || '—');
+  const locationLabel = file.path ? file.path.slice(0, Math.max(0, file.path.length - (file.name||'').length - 1)) || file.path : (file.loc || '—');
+
+  panel.innerHTML = `
+    <div class="flex items-start gap-3 mb-4">
+      ${fileBadge(badgeType,44)}
+      <div class="min-w-0">
+        <div class="text-[14px] font-semibold truncate">${escapeHtml(file.name || 'Unknown file')}</div>
+        <div class="text-[11px]" style="color:var(--text-faint)">${escapeHtml(typeLabel)}${file.size_bytes!=null || file.size ? ` • ${escapeHtml(sizeLabel)}` : ''}</div>
+      </div>
+    </div>
+    <div class="text-[13px] font-semibold mb-2">Details</div>
+    <div class="flex flex-col gap-2 text-[12px] mb-5">
+      <div class="flex justify-between"><span style="color:var(--text-faint)">Type</span><span>${escapeHtml(typeLabel)}</span></div>
+      <div class="flex justify-between gap-3"><span style="color:var(--text-faint);flex-shrink:0">Location</span><span class="text-right truncate" title="${escapeHtml(file.path||locationLabel)}">${escapeHtml(locationLabel)}</span></div>
+      <div class="flex justify-between"><span style="color:var(--text-faint)">Modified</span><span>${escapeHtml(modifiedLabel)}</span></div>
+      <div class="flex justify-between"><span style="color:var(--text-faint)">Size</span><span>${escapeHtml(sizeLabel)}</span></div>
+    </div>
+    <div class="chip justify-center" style="color:var(--accent-2)" onclick="askAboutItem('${escapeHtml((file.name||'this file').replace(/'/g,"\\'"))}')"><i data-lucide="sparkles" class="icon" style="width:13px;height:13px"></i>Ask AI about this file</div>
+  `;
+  lucide.createIcons();
+}
+
+const EVENT_TYPE_BADGE = {
+  file_indexed: {c:'#2b579a', icon:'file-text'},
+  browser_visit: {c:'#33b0e6', icon:'globe'},
+  app_focus: {c:'#6d5bf8', icon:'app-window'},
+};
+
+function selectTimelineEvent(idx){
+  selectedTimelineIdx = Math.min(idx, timelineEvents.length - 1);
+  renderEventDetail(timelineEvents[selectedTimelineIdx]);
+  renderFullTimeline();
+  const event = timelineEvents[selectedTimelineIdx];
+  if(event && event.path_or_url) openTarget(event.path_or_url);
+}
+
+let selectedTimelineDate = new Date();
+function timelineDateKey(date){
+  const y=date.getFullYear(), m=String(date.getMonth()+1).padStart(2,'0'), d=String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+async function loadTimelineForDate(){
+  const key = timelineDateKey(selectedTimelineDate);
+  document.getElementById('timeline-date-input').value = key;
+  document.getElementById('timeline-date-label').textContent = selectedTimelineDate.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  try{
+    const data = await apiGet(`/api/timeline?date=${key}&limit=500`, 8000);
+    timelineEvents.length = 0;
+    data.forEach(e => timelineEvents.push({
+      time:new Date(e.timestamp).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',second:'2-digit'}),
+      app:e.badge_type==='video'?'youtube':'explorer', title:e.title, sub:e.subtitle, right:e.app_label, dur:'',
+      event_type:e.event_type, path_or_url:e.path_or_url, timestamp:e.timestamp, badge_type:e.badge_type,
+    }));
+    selectedTimelineIdx = null;
+    renderFullTimeline(); renderEventDetail(null);
+  } catch(err){ showToast('Could not load timeline for that date.', true); }
+}
+function changeTimelineDay(delta){ selectedTimelineDate.setDate(selectedTimelineDate.getDate()+delta); loadTimelineForDate(); }
+function setTimelineDate(value){ if(value){ selectedTimelineDate = new Date(`${value}T12:00:00`); loadTimelineForDate(); } }
+
+function renderEventDetail(e){
+  const panel = document.getElementById('timeline-detail-panel');
+  if(!e){
+    panel.innerHTML = `<div class="h-full flex items-center justify-center text-[13px] text-center p-6" style="color:var(--text-faint)">Select an item from the timeline to see details.</div>`;
+    return;
+  }
+  const badgeInfo = EVENT_TYPE_BADGE[e.event_type] || {c:'#8a8a99', icon:'clock'};
+  const isUrl = e.event_type === 'browser_visit';
+  panel.innerHTML = `
+    <div class="flex items-center justify-between p-4 border-b" style="border-color:var(--border-soft)">
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="badge-sm badge flex-shrink-0" style="background:${badgeInfo.c}"><i data-lucide="${badgeInfo.icon}" class="icon" style="width:15px;height:15px"></i></div>
+        <div class="text-[14px] font-semibold truncate">${escapeHtml(e.title || '')}</div>
+      </div>
+      <i data-lucide="x" class="icon flex-shrink-0" style="width:15px;height:15px;color:var(--text-faint);cursor:pointer" onclick="selectedTimelineIdx=null; renderEventDetail(null); renderFullTimeline()"></i>
+    </div>
+    <div class="px-4 pt-3 text-[12px]" style="color:var(--text-faint)">
+      <div class="flex items-center gap-2 mb-1"><i data-lucide="calendar" class="icon" style="width:12px;height:12px;flex-shrink:0"></i>${escapeHtml(formatFullDateTime(e.timestamp))}</div>
+      ${e.path_or_url ? `<div class="flex items-center gap-2 mb-3 min-w-0"><i data-lucide="${isUrl?'link':'folder-open'}" class="icon" style="width:12px;height:12px;flex-shrink:0"></i><span class="truncate" title="${escapeHtml(e.path_or_url)}">${escapeHtml(e.path_or_url)}</span></div>` : '<div class="mb-3"></div>'}
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 pt-0">
+      <div class="text-[13px] font-semibold mb-2">Details</div>
+      <div class="flex flex-col gap-2 text-[12px] mb-4">
+        <div class="flex justify-between"><span style="color:var(--text-faint)">Application</span><span>${escapeHtml(e.right || '—')}</span></div>
+        ${e.sub ? `<div class="flex justify-between gap-3"><span style="color:var(--text-faint);flex-shrink:0">Detail</span><span class="text-right truncate" title="${escapeHtml(e.sub)}">${escapeHtml(e.sub)}</span></div>` : ''}
+      </div>
+      <div class="chip justify-center" style="color:var(--accent-2)" onclick="askAboutItem('${escapeHtml((e.title||'this').replace(/'/g,"\\'"))}')"><i data-lucide="sparkles" class="icon" style="width:13px;height:13px"></i>Ask AI about this</div>
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+function showScreen(screen){
+  ['assistant','timeline','files'].forEach(s=>{
+    document.getElementById('screen-'+s).classList.toggle('hidden', s!==screen);
+    document.querySelector(`.nav-item[data-screen="${s}"]`).classList.toggle('active', s===screen);
+  });
+  renderSidebarStats(screen);
+  renderTopbar(screen);
+  lucide.createIcons();
+}
+
+// ---------- BACKEND WIRING ----------
+// The GhostOS Flask backend (ghostos_prototype/backend, run with `python app.py`)
+// exposes /api/categories, /api/collections, /api/recent-files, /api/storage,
+// /api/timeline, /api/stats. If it isn't running (e.g. previewing this file
+// standalone), we fall back to the demo data above so the screens still render.
+const API_BASE = "http://127.0.0.1:5000";
+let backendConnected = false;
+
+async function apiGet(path, timeoutMs = 2500){
+  const res = await fetch(API_BASE + path, { signal: AbortSignal.timeout(timeoutMs) });
+  if(!res.ok) throw new Error("bad response");
+  return res.json();
+}
+
+// ---------- SEARCH ----------
+// Hits GET /api/search?q=... (see app.py) which returns {files:[...], content:[...]}.
+// "files" = instant filename/path matches, "content" = semantic matches against
+// indexed chunk text. Debounced so we don't fire a request per keystroke.
+let searchDebounceTimer = null;
+let searchRequestSeq = 0;
+
+function onSearchInput(value){
+  clearTimeout(searchDebounceTimer);
+  const q = value.trim();
+  if(!q){ closeSearchResults(); return; }
+  searchDebounceTimer = setTimeout(() => runTopbarSearch(q), 250);
+}
+
+async function runTopbarSearch(q){
+  const seq = ++searchRequestSeq;
+  const box = document.getElementById('search-results');
+  box.innerHTML = `<div class="p-4 text-[13px]" style="color:var(--text-faint)">Searching… (first search can take a few seconds while the local model responds)</div>`;
+  box.classList.remove('hidden');
+
+  let data;
+  try{
+    data = await apiGet(`/api/search?q=${encodeURIComponent(q)}&limit=6`, 15000);
+  } catch(err){
+    if(seq !== searchRequestSeq) return;
+    box.innerHTML = `<div class="p-4 text-[13px]" style="color:var(--text-faint)">Couldn't reach the GhostOS backend.</div>`;
+    return;
+  }
+  if(seq !== searchRequestSeq) return; // a newer keystroke already superseded this request
+
+  renderSearchResults(box, q, data);
+}
+
+function renderSearchResults(box, q, data){
+  const files = data.files || [];
+  const content = data.content || [];
+
+  if(!files.length && !content.length){
+    box.innerHTML = `<div class="p-4 text-[13px]" style="color:var(--text-faint)">No matches for "${escapeHtml(q)}"</div>`;
+    return;
+  }
+
+  let html = '';
+  if(files.length){
+    html += `<div class="px-3 pt-3 pb-1 text-[11px] font-semibold" style="color:var(--text-faint)">FILES</div>`;
+    html += files.map((f, i) => `
+      <div class="flex items-center gap-2.5 px-3 py-2 row-hover cursor-pointer" onclick='openSearchFileResult(${i})'>
+        ${fileBadge(nameToBadgeType(f.category), 28)}
+        <div class="min-w-0 flex-1">
+          <div class="text-[12.5px] font-medium truncate">${escapeHtml(f.name)}</div>
+          <div class="text-[11px] truncate" style="color:var(--text-faint)">${escapeHtml(f.path)}</div>
+        </div>
+      </div>`).join('');
+  }
+  if(content.length){
+    html += `<div class="px-3 pt-3 pb-1 text-[11px] font-semibold" style="color:var(--text-faint)">FROM YOUR FILES</div>`;
+    html += content.map((c, i) => `
+      <div class="flex items-start gap-2.5 px-3 py-2 row-hover cursor-pointer" onclick='openSearchContentResult(${i})'>
+        <i data-lucide="file-search" class="icon flex-shrink-0 mt-0.5" style="width:16px;height:16px;color:var(--text-faint)"></i>
+        <div class="min-w-0 flex-1">
+          <div class="text-[11px] font-medium truncate" style="color:var(--accent-2)">${escapeHtml((c.source_path||'').split(/[\\/]/).pop())}</div>
+          <div class="text-[12px] leading-snug" style="color:var(--text-dim)">${escapeHtml(c.snippet)}</div>
+        </div>
+      </div>`).join('');
+  }
+  box.innerHTML = html;
+  window.__lastSearchData = data;
+  lucide.createIcons();
+}
+
+function closeSearchResults(){
+  const box = document.getElementById('search-results');
+  box.classList.add('hidden');
+  box.innerHTML = '';
+}
+
+function openSearchFileResult(i){
+  const f = (window.__lastSearchData && window.__lastSearchData.files[i]);
+  if(!f) return;
+  closeSearchResults();
+  document.getElementById('topbar-search-input').value = '';
+  showScreen('files');
+  selectFile({
+    name: f.name, path: f.path, extension: f.extension, category: f.category,
+    size_bytes: f.size_bytes, modified_at: f.modified_at,
+  });
+}
+
+function openSearchContentResult(i){
+  const c = (window.__lastSearchData && window.__lastSearchData.content[i]);
+  if(!c) return;
+  closeSearchResults();
+  document.getElementById('topbar-search-input').value = '';
+  const fname = (c.source_path || '').split(/[\\/]/).pop() || c.source_path;
+  showScreen('files');
+  selectFile({ name: fname, path: c.source_path, extension: '', category: '', size_bytes: null, modified_at: null });
+}
+
+// Files & Data panel's own search box: filters that panel's "Recent Files"
+// list in place instead of opening the topbar dropdown.
+let filesPanelDebounceTimer = null;
+function onFilesPanelSearchInput(value){
+  clearTimeout(filesPanelDebounceTimer);
+  const q = value.trim();
+  filesPanelDebounceTimer = setTimeout(async () => {
+    if(!q){ renderRecentMini(); return; }
+    try{
+      const data = await apiGet(`/api/search?q=${encodeURIComponent(q)}&limit=8`, 15000);
+      const box = document.getElementById('recent-mini');
+      if(!data.files.length){
+        box.innerHTML = `<div class="text-[12px] px-1 py-2" style="color:var(--text-faint)">No files match "${escapeHtml(q)}"</div>`;
+        return;
+      }
+      box.innerHTML = data.files.map(f => `
+        <div class="flex items-center gap-3 py-2 row-hover rounded-lg px-1 cursor-pointer" onclick='selectFile(${JSON.stringify(f).replace(/'/g,"&#39;")})'>
+          ${fileBadge(nameToBadgeType(f.category),28)}
+          <div class="min-w-0 flex-1"><div class="text-[12px] font-medium truncate">${escapeHtml(f.name)}</div><div class="text-[11px] truncate" style="color:var(--text-faint)">${escapeHtml(f.path)}</div></div>
+        </div>`).join('');
+      lucide.createIcons();
+    } catch(err){
+      console.error('Files panel search error:', err);
+    }
+  }, 250);
+}
+
+// Ctrl+K focuses the topbar search. Click-outside closes the dropdown.
+document.addEventListener('keydown', (e) => {
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
+    e.preventDefault();
+    document.getElementById('topbar-search-input').focus();
+  }
+});
+document.addEventListener('click', (e) => {
+  const box = document.getElementById('search-results');
+  const input = document.getElementById('topbar-search-input');
+  if(box && !box.contains(e.target) && e.target !== input) closeSearchResults();
+});
+
+function badgeTypeToFileType(bt){
+  // events/files store a small badge_type vocabulary; map into FILE_TYPES keys
+  const map = {pdf:'pdf', docx:'docx', xlsx:'xlsx', pptx:'pptx', image:'image', video:'video',
+               audio:'audio', code:'code', archive:'archive', db:'db', txt:'txt'};
+  return map[bt] || 'txt';
+}
+
+function formatBytes(bytes){
+  if(!bytes) return '0 KB';
+  const units=['B','KB','MB','GB','TB']; let i=0; let n=bytes;
+  while(n>=1024 && i<units.length-1){ n/=1024; i++; }
+  return `${n.toFixed(i===0?0:1)} ${units[i]}`;
+}
+function formatTimeAgo(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d)) return iso;
+  return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
+
+async function loadRealData(){
+  const badge = document.getElementById('connection-badge');
+  try{
+    let health;
+    try{
+      health = await apiGet('/api/health', 4000);
+    } catch(err){
+      const healthResponse = await fetch(API_BASE + '/api/health', {signal: AbortSignal.timeout(4000)});
+      if(healthResponse.status !== 503) throw err;
+      health = await healthResponse.json();
+    }
+    const statsData = health.database || await apiGet('/api/stats');
+    backendConnected = true;
+    const aiReady = health.status === 'ready';
+    badge.textContent = aiReady ? 'Connected · AI ready' : 'Connected · Ollama setup needed';
+    badge.title = aiReady ? 'GhostOS and its local models are ready' : (health.ollama?.error || 'Install the configured Ollama models');
+    badge.style.background = aiReady ? '#16211b' : '#2a2015';
+    badge.style.color = aiReady ? 'var(--green)' : '#e0a83a';
+
+    const [cats, cols, recent, storage, timeline] = await Promise.all([
+      apiGet('/api/categories'), apiGet('/api/collections'),
+      apiGet('/api/recent-files?limit=200'), apiGet('/api/storage'),
+      apiGet('/api/timeline?limit=50'),
+    ]);
+
+    if(cats.length){
+      categories.length = 0;
+      cats.forEach(c => categories.push({name:c.name, count:c.count.toLocaleString(), type: nameToBadgeType(c.name)}));
+
+      // Replaces the old hardcoded "Files Indexed 128,456 / Documents 32,104..."
+      // sidebar numbers with real ones, bucketed the same way the backend's
+      // storage breakdown buckets categories (see get_storage_breakdown in
+      // vectorstore.py) so the sidebar stays consistent with what's actually
+      // in the Categories list next to it.
+      const docCategories = new Set(['Documents','PDFs','Word','Excel','Presentations','Code','Databases']);
+      const buckets = {Documents:0, Images:0, Videos:0, Audio:0, Others:0};
+      cats.forEach(c => {
+        if(c.name === 'Images') buckets.Images += c.count;
+        else if(c.name === 'Videos') buckets.Videos += c.count;
+        else if(c.name === 'Audio') buckets.Audio += c.count;
+        else if(docCategories.has(c.name)) buckets.Documents += c.count;
+        else buckets.Others += c.count;
+      });
+      sidebarStats.assistant.items = [
+        ['Files Indexed', (statsData.total_files || 0).toLocaleString()],
+        ['Documents', buckets.Documents.toLocaleString()],
+        ['Images', buckets.Images.toLocaleString()],
+        ['Videos', buckets.Videos.toLocaleString()],
+        ['Audio', buckets.Audio.toLocaleString()],
+        ['Others', buckets.Others.toLocaleString()],
+      ];
+    }
+    if(cols.length){
+      collections.length = 0;
+      const iconMap={Work:'briefcase',College:'graduation-cap',Personal:'user',Finance:'dollar-sign',Projects:'folder'};
+      const colorMap={Work:'#6d5bf8',College:'#3b82f6',Personal:'#a855f7',Finance:'#3ecf7e',Projects:'#f0a020'};
+      cols.forEach(c => collections.push({name:c.name, count:`${c.count.toLocaleString()} files`, icon:iconMap[c.name]||'folder', c:colorMap[c.name]||'#8a8a99'}));
+    }
+    if(recent.length){
+      recentFiles.length = 0;
+      recent.forEach(f => recentFiles.push({
+        name:f.name, cat:f.category, type:nameToBadgeType(f.category),
+        loc:f.path.substring(0,f.path.length-f.name.length-1), time:formatTimeAgo(f.modified_at), size:formatBytes(f.size_bytes),
+        // raw fields, kept alongside the display-formatted ones above, so the
+        // detail panel can render real data when a row is clicked
+        path:f.path, extension:f.extension, size_bytes:f.size_bytes, modified_at:f.modified_at,
+      }));
+    }
+    if(timeline.length){
+      timelineEvents.length = 0;
+      miniTimeline.length = 0;
+      timeline.slice().reverse().forEach(e => {
+        const t = new Date(e.timestamp);
+        const timeLabel = isNaN(t) ? e.timestamp : t.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+        timelineEvents.push({
+          time:timeLabel, app:e.badge_type==='video'?'youtube':'explorer', title:e.title, sub:e.subtitle, right:e.app_label, dur:'',
+          // raw fields for the detail panel
+          event_type:e.event_type, badge_type:e.badge_type, path_or_url:e.path_or_url, timestamp:e.timestamp,
+        });
+        miniTimeline.push({time:timeLabel, type:badgeTypeToFileType(e.badge_type), title:e.title, right:e.app_label});
+      });
+
+      // GhostOS doesn't currently filter events by calendar day (get_timeline
+      // returns "most recent N" regardless of date - see vectorstore.py), so
+      // this is labeled "Recent" rather than "Today" to stay honest about
+      // what it's actually counting.
+      const appsUsed = new Set(timeline.map(e => e.app_label).filter(Boolean)).size;
+      const filesIndexedCount = timeline.filter(e => e.event_type === 'file_indexed').length;
+      const websitesCount = timeline.filter(e => e.event_type === 'browser_visit').length;
+      sidebarStats.timeline.items = [
+        ['Recent Events', timeline.length.toLocaleString()],
+        ['Apps / Sources', appsUsed.toLocaleString()],
+        ['Files Indexed', filesIndexedCount.toLocaleString()],
+        ['Websites Visited', websitesCount.toLocaleString()],
+      ];
+    }
+    const storageMap = Object.fromEntries(storage.map(s=>[s.name, s.bytes]));
+    window.__storageBytes = storageMap;
+  } catch(err){
+    backendConnected = false;
+    badge.textContent = 'Demo mode · backend not connected';
+    badge.style.background = '#2a2015';
+    badge.style.color = '#e0a83a';
+  }
+}
+
+async function loadSystemProfile(){
+  try{
+    const profile = await apiGet('/api/profile', 4000);
+    document.getElementById('profile-name').textContent = profile.display_name;
+    document.getElementById('profile-initials').textContent = profile.initials;
+    document.getElementById('profile-name').title = `${profile.username} on ${profile.computer_name}`;
+  } catch(err){ console.warn('Could not load system profile:', err); }
+}
+
+function nameToBadgeType(categoryName){
+  const map = {
+    Documents:'txt', PDFs:'pdf', Excel:'xlsx', Word:'docx', Presentations:'pptx',
+    Images:'image', Videos:'video', Audio:'audio', Code:'code', Archives:'archive',
+    Databases:'db', Others:'txt',
+  };
+  return map[categoryName] || 'txt';
+}
+
+function showToast(message, isError){
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.style.borderColor = isError ? '#3a1d1d' : '#1d3a29';
+  toast.style.color = isError ? '#e07a7a' : 'var(--green)';
+  toast.classList.remove('hidden');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500);
+}
+
+const STANDARD_FOLDER_ICONS = {
+  Desktop: 'monitor', Documents: 'file-text', Downloads: 'download',
+  Pictures: 'image', Videos: 'video', Music: 'music',
+  'VS Code Projects': 'code-2', 'Git Repositories': 'git-branch',
+};
+
+let connectInProgress = false;
+
+function openConnectModal(){
+  if(connectInProgress) return; // a scan is already running, don't let it be reopened/reset
+  const modal = document.getElementById('connect-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.getElementById('connect-permission-step').classList.remove('hidden');
+  document.getElementById('connect-progress-step').classList.add('hidden');
+  document.getElementById('connect-done-step').classList.add('hidden');
+  document.getElementById('connect-done-step').classList.remove('flex');
+
+  const preview = document.getElementById('connect-folder-preview');
+  preview.innerHTML = Object.keys(STANDARD_FOLDER_ICONS).map(name => `
+    <div class="flex items-center gap-2 text-[12.5px]" style="color:var(--text-dim)">
+      <i data-lucide="${STANDARD_FOLDER_ICONS[name]}" class="icon" style="width:13px;height:13px;color:var(--text-faint)"></i> ${name}
+    </div>`).join('') + `
+    <div class="flex items-center gap-2 text-[12.5px] mt-1" style="color:var(--text-faint)">
+      <i data-lucide="mail" class="icon" style="width:13px;height:13px"></i> Email (not connected yet)
+    </div>`;
+  lucide.createIcons();
+}
+
+function closeConnectModal(){
+  if(connectInProgress) return; // don't let a click-outside dismiss an in-flight scan
+  const modal = document.getElementById('connect-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+function forceCloseConnectModal(){
+  connectInProgress = false;
+  const modal = document.getElementById('connect-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+function addProgressLine(message, spinning){
+  const list = document.getElementById('connect-progress-list');
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-2.5';
+  const icon = spinning ? 'loader-circle' : 'check-circle-2';
+  const spinClass = spinning ? 'animate-spin' : '';
+  const color = spinning ? 'var(--text-faint)' : 'var(--green)';
+  row.innerHTML = `<i data-lucide="${icon}" class="icon ${spinClass}" style="width:14px;height:14px;color:${color};flex-shrink:0"></i><span style="color:var(--text-dim)">${escapeHtml(message)}</span>`;
+  list.appendChild(row);
+  list.scrollTop = list.scrollHeight;
+  lucide.createIcons();
+  return row;
+}
+
+// Updates the percentage bar shown above the progress log. Folder-related
+// events carry real current/total counts (see connect_system.py's
+// on_folder_start/on_folder_done) which map onto the 10%-95% range;
+// everything before/after that (OS detection, VS Code/Git discovery,
+// finalizing) just nudges the bar forward a little so it never looks stuck.
+function updateProgressBar(percent, label){
+  const clamped = Math.max(0, Math.min(100, percent));
+  document.getElementById('connect-progress-bar').style.width = clamped + '%';
+  document.getElementById('connect-progress-percent').textContent = Math.round(clamped) + '%';
+  if(label) document.getElementById('connect-progress-label').textContent = label;
+}
+
+// Turns any still-spinning rows (e.g. "Detecting your system...") into
+// checkmarks once the stream finishes, so nothing is left mid-spin.
+function settleProgressLines(){
+  document.querySelectorAll('#connect-progress-list [data-lucide="loader-circle"]').forEach(icon => {
+    icon.setAttribute('data-lucide', 'check-circle-2');
+    icon.classList.remove('animate-spin');
+    icon.style.color = 'var(--green)';
+  });
+  lucide.createIcons();
+}
+
+// Drives POST /api/connect-system - no folder path is ever sent. The
+// backend discovers the user's standard folders itself (core/connect_system.py)
+// and streams newline-delimited JSON progress events while it scans,
+// ending with one {"type":"done", status, folders, files} line.
+async function startConnectSystem(){
+  connectInProgress = true;
+  document.getElementById('connect-permission-step').classList.add('hidden');
+  document.getElementById('connect-progress-step').classList.remove('hidden');
+  const list = document.getElementById('connect-progress-list');
+  list.innerHTML = '';
+  updateProgressBar(2, 'Starting scan…');
+  addProgressLine('Detecting your system...', true);
+
+  try{
+    const scanDrives = document.getElementById('scan-drives-checkbox').checked;
+    if(scanDrives){
+      addProgressLine('Advanced mode: this will scan entire drives and may take a while...', true);
+    }
+    const res = await fetch(API_BASE + '/api/connect-system', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({scan_entire_drives: scanDrives}),
+    });
+    if(!res.ok || !res.body) throw new Error(`Backend returned ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalResult = null;
+
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // last (possibly incomplete) line carries over to the next chunk
+
+      for(const line of lines){
+        if(!line.trim()) continue;
+        let event;
+        try{ event = JSON.parse(line); } catch(e){ continue; }
+
+        if(event.type === 'progress'){
+          addProgressLine(event.message, true);
+          if(typeof event.current === 'number' && typeof event.total === 'number' && event.total > 0){
+            // Folder scanning is the bulk of the work - map it to 10%-95%.
+            const pct = 10 + (event.current / event.total) * 85;
+            updateProgressBar(pct, `Scanning… (${event.current}/${event.total} folders)`);
+          } else {
+            // Pre-scan phase (OS detection, VS Code/Git discovery) - no
+            // real count to compute from yet, so just nudge forward a
+            // little each time so the bar doesn't look frozen.
+            const bar = document.getElementById('connect-progress-bar');
+            const cur = parseFloat(bar.style.width) || 0;
+            if(cur < 10) updateProgressBar(cur + 2, event.message);
+          }
+        } else if(event.type === 'error'){
+          addProgressLine(`Error: ${event.message}`, false);
+        } else if(event.type === 'done'){
+          finalResult = event;
+        }
+      }
+    }
+
+    settleProgressLines();
+
+    if(finalResult && finalResult.status === 'connected'){
+      updateProgressBar(100, 'Done');
+      addProgressLine(`Connected — watching ${finalResult.folders} folder${finalResult.folders===1?'':'s'}.`, false);
+
+      // connect_system() now only runs its fast phase synchronously (OS
+      // detect + standard folders + starting the watcher) - VS Code/Git
+      // discovery and the actual indexing/embedding pass happen in a
+      // background thread on the backend that's still running at this
+      // point. So there's no final file/chunk count to show yet - just
+      // confirm the folders are being watched, refresh whatever's already
+      // indexed so far, and let the user in immediately. startBackgroundIndexPoll()
+      // (below) keeps a quiet "still organizing…" badge updated in the
+      // main UI until that background job reports done.
+      await loadRealData();
+      renderAll();
+      startBackgroundIndexPoll();
+
+      document.getElementById('connect-progress-step').classList.add('hidden');
+      const doneStep = document.getElementById('connect-done-step');
+      doneStep.classList.remove('hidden');
+      doneStep.classList.add('flex');
+      document.getElementById('connect-done-summary').textContent =
+        `${finalResult.folders} folder${finalResult.folders===1?'':'s'} connected — organizing the rest in the background`;
+      lucide.createIcons();
+      // connectInProgress stays true until the user clicks Continue -
+      // this is what gates access back to the dashboard.
+    } else if(finalResult && finalResult.status === 'no_folders'){
+      addProgressLine('No standard folders were found on this system.', false);
+      connectInProgress = false;
+    } else {
+      addProgressLine('Something went wrong while scanning.', false);
+      connectInProgress = false;
+    }
+  } catch(err){
+    settleProgressLines();
+    addProgressLine(`Couldn't reach the GhostOS backend at ${API_BASE}. Make sure \`python app.py\` is running.`, false);
+    connectInProgress = false;
+    console.error('Connect-system error:', err);
+  }
+}
+
+// Polls GET /api/index-status (connect_system.py's Phase 2 background job:
+// VS Code/Git discovery + the actual indexing/embedding pass) and keeps the
+// small "Organizing your files…" badge in the top bar in sync with it. The
+// user can already use GhostOS while this runs - this is purely an FYI
+// indicator, not something that blocks anything. Stops itself once the
+// backend reports the job is done.
+let bgIndexPollTimer = null;
+
+function stopBackgroundIndexPoll(){
+  if(bgIndexPollTimer){ clearInterval(bgIndexPollTimer); bgIndexPollTimer = null; }
+  document.getElementById('bg-index-badge').classList.add('hidden');
+  document.getElementById('bg-index-badge').classList.remove('flex');
+}
+
+function startBackgroundIndexPoll(){
+  const badge = document.getElementById('bg-index-badge');
+  const text = document.getElementById('bg-index-badge-text');
+  if(bgIndexPollTimer) return; // already polling
+
+  const tick = async () => {
+    let status;
+    try{ status = await apiGet('/api/index-status'); } catch(e){ return; } // backend hiccup - just try again next tick
+
+    if(status.done){
+      stopBackgroundIndexPoll();
+      // One last refresh so Recent Files/Timeline/sidebar counts reflect
+      // everything the background job just finished indexing.
+      loadRealData().then(renderAll);
+      if(status.phase === 'error'){
+        showToast('Background indexing hit an error - some files may not be searchable yet.', true);
+      }
+      return;
+    }
+
+    badge.classList.remove('hidden');
+    badge.classList.add('flex');
+    if(status.phase === 'discovering_vscode_projects'){
+      text.textContent = 'Looking for VS Code projects…';
+    } else if(status.phase === 'discovering_git_repos'){
+      text.textContent = 'Looking for Git repositories…';
+    } else if(status.phase === 'discovering_drives'){
+      text.textContent = 'Scanning drives…';
+    } else if(status.phase === 'indexing'){
+      const folderPart = status.current_folder ? ` (${status.current_folder})` : '';
+      text.textContent = status.current_folder
+        ? `Organizing ${status.current_folder}… (${status.files_processed || 0} new files)`
+        : `Organizing files… ${status.folders_completed}/${status.folders_total} folders`;
+    } else {
+      text.textContent = 'Organizing your files…';
+    }
+    lucide.createIcons();
+  };
+
+  tick();
+  bgIndexPollTimer = setInterval(tick, 2000);
+}
+
+// Called when the user clicks "Continue" on the done-state - this is the
+// only thing that closes the modal after a successful scan (no more
+// auto-close timers), so the user explicitly confirms before landing back
+// on the dashboard.
+function continueToDashboard(){
+  connectInProgress = false;
+  forceCloseConnectModal();
+  document.getElementById('connect-done-step').classList.add('hidden');
+  document.getElementById('connect-done-step').classList.remove('flex');
+  showToast('System connected — your dashboard is up to date.', false);
+}
+
+// ---------- CHAT WIRING ----------
+// Talks to POST /api/chat on the Flask backend. That endpoint streams plain
+// text tokens, then appends a final "\n\n[[SOURCES:...]]" marker with the
+// retrieved file paths + similarity scores (see app.py generate()).
+let chatStarted = false;
+let pendingChatAttachment = null;
+let activeChatController = null;
+let voiceRecognition = null;
+
+function handleChatAttachment(file){ pendingChatAttachment=file||null; if(file) showToast(`Attached: ${file.name}`,false); }
+function toggleVoiceInput(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ showToast('Voice input is not supported by this browser.',true); return; }
+  if(voiceRecognition){ voiceRecognition.stop(); return; }
+  voiceRecognition=new SR(); voiceRecognition.lang='en-IN'; voiceRecognition.interimResults=true;
+  voiceRecognition.onresult=e=>document.getElementById('chat-input').value=Array.from(e.results).map(r=>r[0].transcript).join('');
+  voiceRecognition.onend=()=>{voiceRecognition=null;document.getElementById('chat-mic-btn').style.color='var(--text-faint)';};
+  voiceRecognition.onerror=e=>showToast(`Microphone error: ${e.error}`,true);
+  document.getElementById('chat-mic-btn').style.color='var(--accent-2)'; voiceRecognition.start();
+}
+function stopChatGeneration(){ if(activeChatController) activeChatController.abort(); }
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function scrollChatToBottom(){
+  const el = document.getElementById('chat-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function ensureChatVisible(){
+  if(chatStarted) return;
+  chatStarted = true;
+  document.getElementById('assistant-intro').classList.add('hidden');
+  document.getElementById('assistant-shortcuts').classList.add('hidden');
+  const msgs = document.getElementById('chat-messages');
+  msgs.classList.remove('hidden');
+  msgs.classList.add('flex');
+}
+
+// role: 'user' | 'assistant' | 'error'. Returns the bubble's inner content
+// element so callers (streaming) can keep updating it.
+function appendChatMessage(role, text){
+  const container = document.getElementById('chat-messages');
+  const wrap = document.createElement('div');
+  wrap.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'px-4 py-2.5 rounded-xl text-[13px] leading-relaxed max-w-[85%] whitespace-pre-wrap';
+  if(role === 'user'){
+    bubble.style.background = 'var(--accent)';
+    bubble.style.color = '#fff';
+  } else if(role === 'error'){
+    bubble.style.background = '#2a1515';
+    bubble.style.color = '#e07a7a';
+    bubble.style.border = '1px solid #3a1d1d';
+  } else {
+    bubble.style.background = '#1a1a22';
+    bubble.style.border = '1px solid var(--border-soft)';
+    bubble.style.color = 'var(--text)';
+  }
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  container.appendChild(wrap);
+  scrollChatToBottom();
+  return bubble;
+}
+
+function appendSourcesChip(sources){
+  if(!sources || !sources.length) return;
+  const container = document.getElementById('chat-messages');
+  const wrap = document.createElement('div');
+  wrap.className = 'flex justify-start';
+  const box = document.createElement('div');
+  box.className = 'flex flex-wrap gap-1.5 max-w-[85%]';
+  sources.forEach(s => {
+    const chip = document.createElement('span');
+    chip.className = 'text-[11px] px-2 py-1 rounded-md';
+    chip.style.background = '#191921';
+    chip.style.border = '1px solid var(--border-soft)';
+    chip.style.color = 'var(--text-faint)';
+    const fname = (s.path || '').split(/[\\/]/).pop() || s.path;
+    chip.textContent = `📄 ${fname} · ${s.score != null ? s.score : 'name match'}`;
+    chip.title = s.path;
+    box.appendChild(chip);
+  });
+  wrap.appendChild(box);
+  container.appendChild(wrap);
+  scrollChatToBottom();
+}
+
+async function sendChatMessage(presetText){
+  if(activeChatController){ stopChatGeneration(); return; }
+  const input = document.getElementById('chat-input');
+  const message = (presetText !== undefined ? presetText : input.value).trim();
+  if(!message) return;
+
+  ensureChatVisible();
+  appendChatMessage('user', message);
+  input.value = '';
+  input.focus();
+
+  const sendBtn = document.getElementById('chat-send-btn');
+  sendBtn.innerHTML = '<i data-lucide="square" class="icon" style="width:13px;height:13px;color:#fff"></i>';
+  sendBtn.title = 'Stop generating';
+  activeChatController = new AbortController();
+  lucide.createIcons();
+
+  const assistantBubble = appendChatMessage('assistant', '…');
+  assistantBubble.textContent = '';
+
+  try{
+    let body, headers={};
+    if(pendingChatAttachment){ body=new FormData(); body.append('message',message); body.append('attachment',pendingChatAttachment); }
+    else { headers['Content-Type']='application/json'; body=JSON.stringify({message}); }
+    const res = await fetch(API_BASE + '/api/chat', {method:'POST',headers,body,signal:activeChatController.signal});
+    pendingChatAttachment=null; document.getElementById('chat-file-input').value='';
+    if(!res.ok || !res.body){
+      throw new Error(`Backend returned ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      fullText += decoder.decode(value, {stream: true});
+
+      // Don't render the trailing [[SOURCES:...]] marker as chat text - it
+      // may arrive split across chunks, so only show text up to it.
+      const markerIdx = fullText.indexOf('[[SOURCES:');
+      const visible = markerIdx === -1 ? fullText : fullText.slice(0, markerIdx);
+      assistantBubble.textContent = visible.trim();
+      scrollChatToBottom();
+    }
+
+    // Parse sources out of the final accumulated text, if present
+    const markerIdx = fullText.indexOf('[[SOURCES:');
+    if(markerIdx !== -1){
+      const jsonPart = fullText.slice(markerIdx + '[[SOURCES:'.length).replace(/\]\]\s*$/, '');
+      try{
+        const sources = JSON.parse(jsonPart);
+        appendSourcesChip(sources);
+      } catch(e){
+        console.warn('Could not parse sources marker:', e);
+      }
+    }
+
+    if(!assistantBubble.textContent){
+      assistantBubble.textContent = "I couldn't find that in your indexed files.";
+    }
+  } catch(err){
+    if(err.name === 'AbortError'){
+      if(!assistantBubble.textContent) assistantBubble.textContent = 'Stopped.';
+    } else {
+      assistantBubble.parentElement.remove();
+      appendChatMessage('error', `Couldn't reach the GhostOS backend at ${API_BASE}. Make sure the backend and Ollama are running.`);
+      console.error('Chat error:', err);
+    }
+  } finally {
+    activeChatController = null;
+    sendBtn.innerHTML = '<i data-lucide="arrow-up" class="icon" style="width:15px;height:15px;color:#fff"></i>';
+    sendBtn.title = 'Send';
+    lucide.createIcons();
+  }
+}
+
+function renderAll(){
+  renderMiniTimeline();
+  renderCategoriesMini();
+  renderCollectionsMini();
+  renderRecentMini();
+  renderFullTimeline();
+  renderFullCategories();
+  renderCollectionsFull();
+  renderRecentFull();
+  renderQuickAccess();
+  renderSidebarStats(document.querySelector('.nav-item.active').dataset.screen);
+
+  // Keep an existing manual selection pinned across re-renders (e.g. after
+  // loadRealData() refreshes the lists); otherwise default to the first item
+  // so the detail panels are never empty.
+  renderFileDetail(selectedFile || recentFiles[0] || null);
+  if(selectedTimelineIdx === null || !timelineEvents[selectedTimelineIdx]) selectedTimelineIdx = timelineEvents.length ? 0 : null;
+  renderEventDetail(selectedTimelineIdx !== null ? timelineEvents[selectedTimelineIdx] : null);
+
+  lucide.createIcons();
+}
+
+// initial render (demo data first, so the UI never looks empty), then
+// attempt to load real data from the backend and re-render if available.
+renderAll();
+renderTopbar('assistant');
+lucide.createIcons();
+loadRealData().then(renderAll);
+loadSystemProfile();
+
+// If the page is loaded/refreshed while a background indexing job (started
+// by a previous "Connect to System") is still running on the backend, pick
+// the status badge back up instead of leaving the user with no indication
+// anything is happening.
+apiGet('/api/index-status').then(status => {
+  if(status && status.active && !status.done) startBackgroundIndexPoll();
+}).catch(() => {});
+
+// After "Connect to System" finishes, the backend's watcher keeps indexing
+// new/changed files and browser visits in the background (see watcher.py) -
+// without this, Recent Files and Timeline would only ever reflect the
+// moment the page loaded. Polling every 20s keeps them live. Skipped while
+// a category/collection filter is active so it doesn't silently wipe out
+// what the user is looking at.
+const LIVE_REFRESH_INTERVAL_MS = 20000;
+setInterval(() => {
+  if(!backendConnected) return;
+  if(activeCategoryFilter || activeCollectionFilter) return;
+  loadRealData().then(renderAll);
+}, LIVE_REFRESH_INTERVAL_MS);
+
+setInterval(() => {
+  const screen = document.getElementById('screen-timeline');
+  if(backendConnected && screen && !screen.classList.contains('hidden')) loadTimelineForDate();
+}, 1000);
+
+</script>
+</body>
+</html>

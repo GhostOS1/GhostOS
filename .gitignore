@@ -1,0 +1,40 @@
+# GhostOS private/local data
+ghostos_memory.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Local tooling and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated archives and logs
+*.zip
+*.log
+*.tmp
+
+# Tesseract installation (install separately)
+tessdata/
+tesseract/
+*.exe
+*.dll
+*.jar
+# Tesseract documentation installed at repository root
+/*.html
+
+# Mistakenly-created Windows text version of this file
+.gitignore.txt
