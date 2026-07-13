@@ -4,10 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>GhostOS — Your Private AI OS</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/lucide@latest"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="/static/ghostos-logo.png" />
 <style>
   :root{
     --bg:#08080c;
@@ -27,15 +24,51 @@
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
+    margin:0;
     background:var(--bg);
     color:var(--text);
-    font-family:'Inter',system-ui,sans-serif;
+    font-family:'Segoe UI',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
+  button,input,textarea{font:inherit;color:inherit;} button{border:0;} table{border-collapse:collapse;}
+  /* Small local utility set used by this single-file UI. This replaces the
+     Tailwind CDN so GhostOS renders fully offline without startup requests. */
+  .absolute{position:absolute}.fixed{position:fixed}.relative{position:relative}
+  .inset-0{inset:0}.right-0{right:0}.right-6{right:1.5rem}.bottom-6{bottom:1.5rem}.top-\[calc\(100\%\+6px\)\]{top:calc(100% + 6px)}
+  .hidden{display:none!important}.flex{display:flex}.grid{display:grid}.inline{display:inline}
+  .flex-1{flex:1 1 0%}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.flex-shrink-0{flex-shrink:0}
+  .items-center{align-items:center}.items-start{align-items:flex-start}.justify-between{justify-content:space-between}.justify-center{justify-content:center}.justify-end{justify-content:flex-end}
+  .grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .grid-cols-\[1fr_380px\]{grid-template-columns:minmax(0,1fr) 380px}.grid-cols-\[1fr_420px\]{grid-template-columns:minmax(0,1fr) 420px}.grid-cols-\[220px_1fr_340px\]{grid-template-columns:220px minmax(0,1fr) 340px}
+  .w-full{width:100%}.w-2{width:.5rem}.w-7{width:1.75rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-14{width:3.5rem}.w-\[68px\]{width:68px}.w-\[70px\]{width:70px}.w-\[75px\]{width:75px}.w-\[100px\]{width:100px}.w-\[228px\]{width:228px}.w-\[380px\]{width:380px}.w-\[440px\]{width:440px}
+  .h-full{height:100%}.h-screen{height:100vh}.h-2{height:.5rem}.h-7{height:1.75rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-14{height:3.5rem}.h-\[70px\]{height:70px}.h-\[100px\]{height:100px}
+  .min-h-0{min-height:0}.min-w-0{min-width:0}.max-h-\[420px\]{max-height:420px}.max-w-\[360px\]{max-width:360px}.max-w-\[900px\]{max-width:900px}
+  .gap-0\.5{gap:.125rem}.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}
+  .p-1{padding:.25rem}.p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-8{padding:2rem}
+  .px-1{padding-left:.25rem;padding-right:.25rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-7{padding-left:1.75rem;padding-right:1.75rem}
+  .py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-3\.5{padding-top:.875rem;padding-bottom:.875rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-5{padding-top:1.25rem;padding-bottom:1.25rem}
+  .pt-0{padding-top:0}.pt-1\.5{padding-top:.375rem}.pt-3{padding-top:.75rem}.pb-1{padding-bottom:.25rem}.pb-6{padding-bottom:1.5rem}.pr-1{padding-right:.25rem}
+  .m-0{margin:0}.mx-auto{margin-left:auto;margin-right:auto}.my-2{margin-top:.5rem;margin-bottom:.5rem}.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-2\.5{margin-top:.625rem}.mt-4{margin-top:1rem}
+  .mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.mb-6{margin-bottom:1.5rem}.mb-7{margin-bottom:1.75rem}
+  .rounded{border-radius:.25rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}.rounded-2xl{border-radius:1rem}.rounded-full{border-radius:9999px}
+  .border-none{border-style:none}.border-b{border-bottom:1px solid}.border-r{border-right:1px solid}.border-t{border-top:1px solid}.bg-transparent{background-color:transparent}
+  .overflow-hidden{overflow:hidden}.overflow-y-auto{overflow-y:auto}.outline-none{outline:2px solid transparent;outline-offset:2px}.resize-y{resize:vertical}
+  .cursor-pointer{cursor:pointer}.pointer-events-none{pointer-events:none}.float-right{float:right}.opacity-0{opacity:0}.z-50{z-index:50}
+  .text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}.font-normal{font-weight:400}.font-medium{font-weight:500}.font-semibold{font-weight:600}.font-bold{font-weight:700}
+  .text-\[9px\]{font-size:9px}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-\[12px\]{font-size:12px}.text-\[12\.5px\]{font-size:12.5px}.text-\[13px\]{font-size:13px}.text-\[13\.5px\]{font-size:13.5px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[16px\]{font-size:16px}.text-\[19px\]{font-size:19px}.text-xl{font-size:1.25rem}
+  .leading-tight{line-height:1.25}.leading-snug{line-height:1.375}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.whitespace-pre-wrap{white-space:pre-wrap}
+  .animate-spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  .mic-recording{animation:micPulse 1s ease-in-out infinite;color:#ef4444 !important;}
+  @keyframes micPulse{0%,100%{opacity:1;}50%{opacity:.4;}}
   ::-webkit-scrollbar{width:8px;height:8px;}
   ::-webkit-scrollbar-thumb{background:#26262f;border-radius:8px;}
   ::-webkit-scrollbar-track{background:transparent;}
-  .icon{width:16px;height:16px;stroke-width:2;}
+  .icon{display:inline-flex;width:16px;height:16px;stroke-width:2;flex:0 0 auto;vertical-align:middle;overflow:hidden;}
+  .icon>svg{display:block;width:100%;height:100%;}
+  .brand-logo{width:46px;height:46px;border-radius:13px;overflow:hidden;flex:0 0 auto;background:#06070d;border:1px solid #322467;box-shadow:0 0 18px #6d5bf844;}
+  .brand-logo img{width:100%;height:100%;object-fit:cover;transform:scale(1.65) translateY(-11%);transform-origin:center center;display:block;}
+  .file-table-card{min-height:180px;}
+  .file-table-card thead{background:#13131a;position:sticky;top:0;z-index:1;}
   .nav-item{
     display:flex;align-items:center;gap:10px;
     padding:10px 12px;border-radius:10px;
@@ -54,6 +87,7 @@
   }
   .chip:hover{background:#20202a;border-color:#2c2c3a;}
   .card{background:var(--card);border:1px solid var(--border-soft);border-radius:14px;}
+  .scrollbar-y{overflow-y:auto;scrollbar-gutter:stable;}
   .cat-tile{
     background:var(--card);border:1px solid var(--border-soft);border-radius:12px;
     padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;
@@ -69,6 +103,86 @@
   @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
   .titlebar-btn{width:12px;height:12px;color:var(--text-faint);}
 </style>
+<script>
+  if(window.location.protocol==='file:'){
+    window.location.replace('http://127.0.0.1:5000/');
+  }
+  /* Dependency-free local line icons. Every data-lucide / icon: name used
+     anywhere in the app is mapped explicitly below, so nothing silently
+     falls back to the generic placeholder glyph. */
+  window.LUCIDE_ICONS={
+    'bot':'<path d="M12 8V4H8"></path><rect width="16" height="12" x="4" y="8" rx="2"></rect><path d="M2 14h2"></path><path d="M20 14h2"></path><path d="M15 13v2"></path><path d="M9 13v2"></path>',
+    'clock':'<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
+    'folder':'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>',
+    'folder-open':'<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path>',
+    'settings':'<circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"></path>',
+    'settings-2':'<path d="M20 7h-9"></path><path d="M14 17H5"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle>',
+    'circle-help':'<circle cx="12" cy="12" r="9"></circle><path d="M9.8 9a2.4 2.4 0 1 1 3.2 2.3c-.7.3-1 1-1 1.7M12 17h.01"></path>',
+    'search':'<circle cx="10" cy="10" r="6"></circle><path d="m15 15 6 6"></path>',
+    'ghost':'<path d="M9 10h.01"></path><path d="M15 10h.01"></path><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"></path>',
+    'calendar-days':'<rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path>',
+    'calendar':'<rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="M8 2v4"></path><path d="M16 2v4"></path>',
+    'receipt':'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path><path d="M8 7h8"></path><path d="M8 11h8"></path><path d="M8 15h5"></path>',
+    'presentation':'<path d="M2 3h20"></path><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"></path><path d="m7 21 5-5 5 5"></path>',
+    'paperclip':'<path d="M13.234 20.252 21 12.3a5 5 0 0 0-7.07-7.07L5.115 13.945a3 3 0 0 0 4.243 4.243l7.071-7.071"></path>',
+    'mic':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line>',
+    'arrow-up':'<path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path>',
+    'history':'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path>',
+    'app-window':'<rect width="18" height="14" x="3" y="5" rx="2"></rect><path d="M3 9h18"></path><path d="M9 5v4"></path>',
+    'message-square-plus':'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M12 7v6"></path><path d="M9 10h6"></path>',
+    'chevron-left':'<path d="m15 18-6-6 6-6"></path>',
+    'chevron-right':'<path d="m9 18 6-6-6-6"></path>',
+    'x':'<path d="M6 6l12 12M18 6 6 18"></path>',
+    'check-circle-2':'<circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path>',
+    'shield-check':'<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6l8-3 8 3z"></path><path d="m9 12 2 2 4-4"></path>',
+    'scan-line':'<path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="3" x2="21" y1="12" y2="12"></line>',
+    'scan-search':'<path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><circle cx="12" cy="12" r="3"></circle><path d="m16 16-1.9-1.9"></path>',
+    'file-text':'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path>',
+    'file-spreadsheet':'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M8 13h2"></path><path d="M14 13h2"></path><path d="M8 17h2"></path><path d="M14 17h2"></path>',
+    'file':'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path>',
+    'file-search':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><circle cx="16.5" cy="17.5" r="2.5"></circle><path d="m19.5 20.5-1.5-1.5"></path>',
+    'image':'<rect width="18" height="18" x="3" y="3" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>',
+    'video':'<path d="m22 8-6 4 6 4V8Z"></path><rect width="14" height="12" x="2" y="6" rx="2"></rect>',
+    'music':'<path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>',
+    'code-2':'<path d="m18 16 4-4-4-4"></path><path d="m6 8-4 4 4 4"></path><path d="m14.5 4-5 16"></path>',
+    'archive':'<rect width="20" height="5" x="2" y="3" rx="1"></rect><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"></path><path d="M10 12h4"></path>',
+    'database':'<ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"></path><path d="M3 12A9 3 0 0 0 21 12"></path>',
+    'globe':'<circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path>',
+    'globe-2':'<circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path>',
+    'link':'<path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" x2="16" y1="12" y2="12"></line>',
+    'briefcase':'<rect width="20" height="14" x="2" y="7" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>',
+    'graduation-cap':'<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path>',
+    'user':'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+    'dollar-sign':'<line x1="12" x2="12" y1="2" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>',
+    'more-vertical':'<circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>',
+    'external-link':'<path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>',
+    'sparkles':'<path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"></path>',
+    'square':'<rect width="18" height="18" x="3" y="3" rx="2"></rect>',
+    'bookmark':'<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>',
+    'download':'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line>',
+    'refresh-cw':'<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path>',
+    'loader-circle':'<path d="M21 12a9 9 0 1 1-6.219-8.56"></path>',
+    'mail':'<rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>',
+    'check':'<path d="m5 12 4 4L19 6"></path>',
+    'play':'<path d="m8 5 11 7-11 7z"></path>'
+  };
+  window.lucide={createIcons(){
+    document.querySelectorAll('[data-lucide]').forEach(el=>{
+      const name=(el.dataset.lucide||'').toLowerCase();
+      let body=window.LUCIDE_ICONS[name];
+      if(!body){
+        // Fallback for any icon name not in the dictionary above: try a
+        // loose family match before giving up and showing a plain circle.
+        if(name.includes('folder')) body=window.LUCIDE_ICONS['folder'];
+        else if(name.includes('file')) body=window.LUCIDE_ICONS['file'];
+        else if(name.includes('search')) body=window.LUCIDE_ICONS['search'];
+        else if(name.includes('check')) body=window.LUCIDE_ICONS['check'];
+        else body='<circle cx="12" cy="12" r="8"></circle>';
+      }
+      el.innerHTML=`<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+    });
+  }};
+</script>
 </head>
 <body>
 
@@ -79,8 +193,49 @@
     <div>
       <!-- Logo -->
       <div class="flex items-center gap-3 px-1 mb-7">
-        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#7c6bff,#4c3ce0)">
-          <i data-lucide="ghost" class="icon" style="width:20px;height:20px;color:#fff"></i>
+        <div class="brand-logo" title="GhostOS">
+          <svg viewBox="0 0 240 240" width="100%" height="100%" role="img" aria-label="GhostOS logo">
+            <defs>
+              <filter id="logoGlow" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="4" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <radialGradient id="logoNucleusGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#0a0a14" stop-opacity="0"/>
+                <stop offset="70%" stop-color="#0a0a14" stop-opacity="0"/>
+                <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.15"/>
+              </radialGradient>
+              <linearGradient id="logoRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#c4b5fd"/>
+                <stop offset="50%" stop-color="#8b5cf6"/>
+                <stop offset="100%" stop-color="#60a5fa"/>
+              </linearGradient>
+              <path id="logoOrbitPath" d="M 20,120 A 100,42 0 1 1 220,120 A 100,42 0 1 1 20,120 Z" fill="none"/>
+            </defs>
+            <g opacity="0.55">
+              <use href="#logoOrbitPath" stroke="#8b5cf6" stroke-width="1" transform="rotate(0 120 120)"/>
+              <use href="#logoOrbitPath" stroke="#60a5fa" stroke-width="1" transform="rotate(60 120 120)"/>
+              <use href="#logoOrbitPath" stroke="#a78bfa" stroke-width="1" transform="rotate(120 120 120)"/>
+            </g>
+            <circle cx="120" cy="120" r="60" fill="url(#logoNucleusGlow)"/>
+            <circle cx="120" cy="120" r="34" fill="none" stroke="url(#logoRingGrad)" stroke-width="5" filter="url(#logoGlow)">
+              <animate attributeName="stroke-width" values="5;7;5" dur="2.4s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.85;1;0.85" dur="2.4s" repeatCount="indefinite"/>
+            </circle>
+            <circle r="4" fill="#e9e4ff" filter="url(#logoGlow)">
+              <animateMotion dur="4s" repeatCount="indefinite"><mpath href="#logoOrbitPath"/></animateMotion>
+            </circle>
+            <g transform="rotate(60 120 120)">
+              <circle r="3.5" fill="#bcd4ff" filter="url(#logoGlow)">
+                <animateMotion dur="5.5s" repeatCount="indefinite"><mpath href="#logoOrbitPath"/></animateMotion>
+              </circle>
+            </g>
+            <g transform="rotate(120 120 120)">
+              <circle r="3.5" fill="#d8ccff" filter="url(#logoGlow)">
+                <animateMotion dur="7s" repeatCount="indefinite"><mpath href="#logoOrbitPath"/></animateMotion>
+              </circle>
+            </g>
+          </svg>
         </div>
         <div>
           <div class="text-[15px] font-bold leading-tight">GhostOS</div>
@@ -107,14 +262,13 @@
       <div id="sidebar-stats"></div>
 
       <div class="flex flex-col gap-1 mt-4">
-        <div class="nav-item"><i data-lucide="settings" class="icon"></i> Settings</div>
-        <div class="nav-item"><i data-lucide="help-circle" class="icon"></i> Help</div>
+        <div class="nav-item" data-screen="settings" onclick="showScreen('settings'); loadSettingsScreen()"><i data-lucide="settings" class="icon" style="color:#a89bff"></i> Settings</div>
+        <div class="nav-item" onclick="showScreen('settings'); loadSettingsScreen(); showToast('Setup help and exact missing components are shown in Diagnostics.',false)"><i data-lucide="circle-help" class="icon" style="color:#55b8ff"></i> Help</div>
       </div>
 
-      <div class="flex items-center gap-2 mt-4 px-2 py-2 rounded-xl cursor-pointer" style="background:#16161e" onclick="void(0)">
+      <div class="flex items-center gap-2 mt-4 px-2 py-2 rounded-xl" style="background:#16161e" title="Detected from this Windows account">
         <div id="profile-initials" class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold" style="background:var(--accent)">U</div>
         <div id="profile-name" class="text-[13px] font-medium flex-1">System User</div>
-        <i data-lucide="chevron-down" class="icon" style="width:14px;height:14px;color:var(--text-faint)"></i>
       </div>
     </div>
   </aside>
@@ -130,6 +284,7 @@
         <div id="bg-index-badge" class="hidden text-[11px] px-2.5 py-1.5 rounded-lg font-medium items-center gap-1.5" style="background:#1e1a2e;color:#c9b8ff">
           <i data-lucide="loader-circle" class="animate-spin" style="width:11px;height:11px"></i>
           <span id="bg-index-badge-text">Organizing your files…</span>
+          <button type="button" title="Stop indexing" aria-label="Stop indexing" onclick="event.stopPropagation(); cancelBackgroundIndexing()" style="width:14px;height:14px;border-radius:3px;background:#c9b8ff;color:#1e1a2e;font-size:9px;line-height:14px">■</button>
         </div>
         <div class="relative" style="min-width:230px">
           <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px]" style="background:#15151c;border:1px solid var(--border-soft);color:var(--text-faint)">
@@ -142,11 +297,6 @@
             <span class="text-[11px] px-1.5 py-0.5 rounded flex-shrink-0" style="background:#20202a">Ctrl K</span>
           </div>
           <div id="search-results" class="hidden absolute right-0 top-[calc(100%+6px)] w-[380px] max-h-[420px] overflow-y-auto rounded-xl z-50 card" style="background:var(--panel);border-color:var(--border-soft)"></div>
-        </div>
-        <div class="flex items-center gap-3" style="color:var(--text-faint)">
-          <i data-lucide="minus" class="titlebar-btn"></i>
-          <i data-lucide="square" class="titlebar-btn"></i>
-          <i data-lucide="x" class="titlebar-btn"></i>
         </div>
       </div>
     </header>
@@ -164,8 +314,7 @@
               <div class="flex flex-wrap justify-center gap-2 mb-6">
                 <div class="chip" onclick="sendChatMessage('Summarize my day')"><i data-lucide="calendar-days" class="icon" style="width:14px;height:14px"></i>Summarize my day</div>
                 <div class="chip" onclick="sendChatMessage(&quot;Find last week&#39;s invoice&quot;)"><i data-lucide="receipt" class="icon" style="width:14px;height:14px"></i>Find last week's invoice</div>
-                <div class="chip" onclick="sendChatMessage('Open presentation')"><i data-lucide="presentation" class="icon" style="width:14px;height:14px"></i>Open presentation</div>
-                <div class="chip" style="width:36px;justify-content:center"><i data-lucide="more-horizontal" class="icon"></i></div>
+                <div class="chip" onclick="sendChatMessage('Find my most recent presentation')"><i data-lucide="presentation" class="icon" style="width:14px;height:14px"></i>Find a presentation</div>
               </div>
             </div>
 
@@ -185,11 +334,12 @@
             </div>
 
             <div id="assistant-shortcuts" class="flex flex-wrap justify-center gap-2 mb-4 flex-shrink-0">
-              <div class="chip"><i data-lucide="search" class="icon" style="width:14px;height:14px"></i>Search Files</div>
-              <div class="chip"><i data-lucide="globe" class="icon" style="width:14px;height:14px"></i>Search Web</div>
-              <div class="chip"><i data-lucide="app-window" class="icon" style="width:14px;height:14px"></i>Open App</div>
-              <div class="chip"><i data-lucide="square-pen" class="icon" style="width:14px;height:14px"></i>Create Note</div>
+              <div class="chip" onclick="document.getElementById('topbar-search-input').focus()"><i data-lucide="search" class="icon" style="width:14px;height:14px"></i>Search Files</div>
+              <div class="chip" onclick="sendChatMessage('Find a page from my browser history about ')"><i data-lucide="history" class="icon" style="width:14px;height:14px"></i>Search History</div>
+              <div class="chip" onclick="promptOpenApplication()"><i data-lucide="app-window" class="icon" style="width:14px;height:14px"></i>Open App</div>
+              <div class="chip" onclick="resetConversation()"><i data-lucide="message-square-plus" class="icon" style="width:14px;height:14px"></i>New Chat</div>
             </div>
+            <div id="assistant-insights" class="hidden w-full mb-4 flex-shrink-0"></div>
             <div class="text-[12px] flex-shrink-0" style="color:var(--text-faint)">GhostOS uses AI to understand your computer locally and securely.</div>
           </div>
 
@@ -201,13 +351,13 @@
               <div class="text-[13px] cursor-pointer" style="color:var(--text-dim)" onclick="showScreen('timeline')">See all</div>
             </div>
             <div class="flex gap-2 mb-4">
-              <div class="tab-btn active">All</div>
-              <div class="tab-btn">Apps</div>
-              <div class="tab-btn">Documents</div>
-              <div class="tab-btn">Web</div>
-              <div class="tab-btn">System</div>
+              <div class="tab-btn active" data-mini-filter="all" onclick="setMiniTimelineFilter('all')">All</div>
+              <div class="tab-btn" data-mini-filter="apps" onclick="setMiniTimelineFilter('apps')">Apps</div>
+              <div class="tab-btn" data-mini-filter="documents" onclick="setMiniTimelineFilter('documents')">Documents</div>
+              <div class="tab-btn" data-mini-filter="web" onclick="setMiniTimelineFilter('web')">Web</div>
+              <div class="tab-btn" data-mini-filter="system" onclick="setMiniTimelineFilter('system')">System</div>
             </div>
-            <div class="text-[12px] font-semibold mb-2" style="color:var(--text-faint)">Today</div>
+            <div id="mini-timeline-heading" class="text-[12px] font-semibold mb-2" style="color:var(--text-faint)">Recent activity</div>
             <div class="flex flex-col" id="mini-timeline"></div>
           </div>
         </div>
@@ -239,7 +389,7 @@
 
           <div class="flex items-center justify-between mb-2">
             <div class="text-[13px] font-semibold" style="color:var(--text-dim)">AI Collections</div>
-            <div class="text-[12px] cursor-pointer" style="color:var(--accent-2)" onclick="showScreen('files')">View all</div>
+            <div class="text-[12px] cursor-pointer" style="color:var(--accent-2)" onclick="showScreen('files'); clearFileFilter()">View all</div>
           </div>
           <div class="grid grid-cols-2 gap-2 mb-4" id="collections-mini"></div>
 
@@ -266,11 +416,12 @@
             </div>
             <div class="flex items-center gap-1 p-1 rounded-lg" style="background:var(--card);border:1px solid var(--border-soft)">
               <div class="tab-btn active">Day</div>
-              <div class="tab-btn">Week</div>
-              <div class="tab-btn">Month</div>
+              <div class="tab-btn" title="Week view is not implemented in this MVP" style="opacity:.45;cursor:not-allowed">Week</div>
+              <div class="tab-btn" title="Month view is not implemented in this MVP" style="opacity:.45;cursor:not-allowed">Month</div>
             </div>
           </div>
-          <div class="text-[13px] font-semibold mb-3" style="color:var(--accent-2)">Today</div>
+          <div id="timeline-daily-summary" class="card p-3 mb-3 text-[12px] flex-shrink-0" style="color:var(--text-dim)">Loading local daily summary…</div>
+          <div id="timeline-day-heading" class="text-[13px] font-semibold mb-3" style="color:var(--accent-2)">Today</div>
           <div class="flex-1 overflow-y-auto flex flex-col gap-0.5 pr-1" id="full-timeline"></div>
         </div>
 
@@ -288,38 +439,34 @@
           <div class="card p-3 mb-3">
             <div class="text-[11px] font-semibold mb-1.5" style="color:var(--text-faint)">SYSTEM STATUS</div>
             <div class="flex items-center gap-1.5 text-[13px] font-medium" style="color:var(--green)">
-              <i data-lucide="check-circle-2" class="icon" style="width:14px;height:14px"></i> Connected
+              <i data-lucide="check-circle-2" class="icon" style="width:14px;height:14px"></i> <span id="files-system-status-label">Not connected</span>
             </div>
-            <div class="text-[11px] mt-0.5" style="color:var(--text-faint)">All systems are up to date</div>
+            <div id="files-system-status-detail" class="text-[11px] mt-0.5" style="color:var(--text-faint)">Use Connect to System to start local collectors</div>
           </div>
 
           <div class="card p-3">
             <div class="text-[11px] font-semibold mb-2" style="color:var(--text-faint)">STORAGE OVERVIEW</div>
             <div class="flex items-center justify-center my-2">
-              <div class="relative w-[100px] h-[100px] rounded-full flex items-center justify-center"
-                   style="background:conic-gradient(#6d5bf8 0% 25%, #3ecf7e 25% 44%, #ff5c8a 44% 57%, #4b4b58 57% 100%)">
+              <div id="storage-chart" class="relative w-[100px] h-[100px] rounded-full flex items-center justify-center"
+                   style="background:#24242e">
                 <div class="w-[70px] h-[70px] rounded-full flex flex-col items-center justify-center" style="background:var(--card)">
-                  <div class="text-[16px] font-bold">512</div>
-                  <div class="text-[9px]" style="color:var(--text-faint)">GB Used</div>
+                  <div id="storage-total" class="text-[12px] font-bold">0 B</div>
+                  <div class="text-[9px]" style="color:var(--text-faint)">Indexed</div>
                 </div>
               </div>
             </div>
-            <div class="flex flex-col gap-1.5 mt-2 text-[11px]">
-              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#6d5bf8"></span>Documents</span><span style="color:var(--text-faint)">128 GB</span></div>
-              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#3ecf7e"></span>Images</span><span style="color:var(--text-faint)">96 GB</span></div>
-              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#ff5c8a"></span>Videos</span><span style="color:var(--text-faint)">64 GB</span></div>
-              <div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#4b4b58"></span>Others</span><span style="color:var(--text-faint)">224 GB</span></div>
-            </div>
+            <div id="storage-legend" class="flex flex-col gap-1.5 mt-2 text-[11px]"></div>
           </div>
         </div>
 
         <!-- center -->
         <div class="flex flex-col min-h-0 overflow-y-auto pr-1">
-          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">AI Collections <span class="float-right text-[12px] font-normal cursor-pointer" style="color:var(--accent-2)" onclick="activeCollectionFilter=null; renderCollectionsFull()">View all</span></div>
+          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">AI Collections <span class="float-right text-[12px] font-normal cursor-pointer" style="color:var(--accent-2)" onclick="clearFileFilter()">View all files</span></div>
           <div class="grid grid-cols-5 gap-2 mb-5" id="collections-full"></div>
 
-          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">Recent Files <span class="float-right text-[12px] font-normal cursor-pointer" style="color:var(--accent-2)" onclick="clearFileFilter()">View all</span></div>
-          <div class="card overflow-hidden mb-5">
+          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)"><span id="file-list-heading">All Files</span> <span class="float-right text-[12px] font-normal cursor-pointer" style="color:var(--accent-2)" onclick="clearFileFilter()">Reset filter</span></div>
+          <div class="card file-table-card flex flex-col flex-1 min-h-0 overflow-hidden mb-5">
+            <div id="recent-full-scroll" class="flex-1 min-h-0 scrollbar-y">
             <table class="w-full text-[13px]">
               <thead>
                 <tr class="text-left" style="color:var(--text-faint)">
@@ -333,14 +480,80 @@
               </thead>
               <tbody id="recent-full"></tbody>
             </table>
+              <div id="file-list-sentinel" class="h-1"></div>
+            </div>
+            <div id="file-list-pager" class="flex items-center justify-between gap-3 px-4 py-3 border-t flex-shrink-0" style="border-color:var(--border-soft)">
+              <span id="file-list-summary" class="text-[11px]" style="color:var(--text-faint)">Loading files…</span>
+              <span id="file-list-loading-more" class="hidden text-[11px]" style="color:var(--text-faint)">Loading more files…</span>
+              <button id="file-list-more" class="chip" onclick="loadMoreFiles()">Load next 200</button>
+            </div>
           </div>
 
-          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">Quick Access by Type <i data-lucide="chevron-right" class="icon inline" style="width:13px;height:13px"></i></div>
+          <div class="text-[13px] font-semibold mb-2" style="color:var(--text-dim)">Browse every file type</div>
           <div class="grid grid-cols-4 gap-2" id="quick-access"></div>
         </div>
 
         <!-- right file detail -->
         <div class="card flex flex-col min-h-0 overflow-y-auto p-4" id="file-detail-panel"></div>
+      </div>
+
+      <!-- ============ SCREEN 4: SETTINGS ============ -->
+      <div id="screen-settings" class="fade-in hidden h-full overflow-y-auto p-6">
+        <div class="max-w-[900px] mx-auto flex flex-col gap-4">
+          <div class="card p-5">
+            <div class="text-[15px] font-semibold mb-1">Local AI</div>
+            <div class="text-[12px] mb-4" style="color:var(--text-faint)">Model changes are applied after restarting the backend.</div>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="text-[12px]" style="color:var(--text-dim)">Ollama URL<input id="setting-ollama-url" class="mt-1 w-full rounded-lg px-3 py-2 bg-transparent" style="border:1px solid var(--border)" /></label>
+              <div></div>
+              <label class="text-[12px]" style="color:var(--text-dim)">Chat model<input id="setting-chat-model" class="mt-1 w-full rounded-lg px-3 py-2 bg-transparent" style="border:1px solid var(--border)" /></label>
+              <label class="text-[12px]" style="color:var(--text-dim)">Embedding model<input id="setting-embed-model" class="mt-1 w-full rounded-lg px-3 py-2 bg-transparent" style="border:1px solid var(--border)" /></label>
+            </div>
+          </div>
+          <div class="card p-5">
+            <div class="text-[15px] font-semibold mb-3">Local capabilities</div>
+            <div class="grid grid-cols-2 gap-3 text-[13px]">
+              <label class="flex items-center gap-2"><input id="setting-ocr" type="checkbox" /> Optional offline OCR</label>
+              <label class="flex items-center gap-2"><input id="setting-activity" type="checkbox" /> Foreground activity tracking</label>
+              <label class="flex items-center gap-2"><input id="setting-browser" type="checkbox" /> Browser history indexing</label>
+              <label class="flex items-center gap-2"><input id="setting-drive-scan" type="checkbox" /> Whole-drive scan (slow; off by default)</label>
+            </div>
+          </div>
+          <div class="card p-5">
+            <div class="text-[15px] font-semibold mb-1">Indexed locations</div>
+            <div class="text-[12px] mb-3" style="color:var(--text-faint)">Standard Windows folders are discovered automatically. Add or exclude one absolute folder path per line.</div>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="text-[12px]" style="color:var(--text-dim)">Additional folders<textarea id="setting-indexed-folders" rows="4" class="mt-1 w-full rounded-lg px-3 py-2 bg-transparent resize-y" style="border:1px solid var(--border)" placeholder="C:\\Users\\you\\Projects"></textarea></label>
+              <label class="text-[12px]" style="color:var(--text-dim)">Excluded folders<textarea id="setting-excluded-folders" rows="4" class="mt-1 w-full rounded-lg px-3 py-2 bg-transparent resize-y" style="border:1px solid var(--border)" placeholder="C:\\Users\\you\\Documents\\Private"></textarea></label>
+            </div>
+          </div>
+          <div class="card p-5">
+            <div class="text-[15px] font-semibold mb-3">Action permissions</div>
+            <div id="settings-actions" class="grid grid-cols-2 gap-2 text-[13px]"></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3"><div class="text-[15px] font-semibold">Diagnostics</div><button class="chip" onclick="loadDiagnostics()">Refresh</button></div>
+            <div id="settings-diagnostics" class="text-[12px] whitespace-pre-wrap" style="color:var(--text-dim)">Loading…</div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3"><div class="text-[15px] font-semibold">Index management</div><button class="chip" onclick="loadIndexManagement()">Refresh</button></div>
+            <div id="settings-index-status" class="text-[12px] whitespace-pre-wrap mb-3" style="color:var(--text-dim)">Loading…</div>
+            <div class="flex flex-wrap gap-2">
+              <button class="chip" onclick="cancelBackgroundIndexing()">Stop indexing</button>
+              <button class="chip" onclick="rebuildIndex()">Rebuild index</button>
+              <button class="chip" style="color:#e07a7a" onclick="clearLocalData()">Clear local data</button>
+            </div>
+          </div>
+          <div class="card p-5" style="border-color:#28342d">
+            <div class="flex gap-2 items-center text-[14px] font-semibold mb-2" style="color:var(--green)"><i data-lucide="shield-check" class="icon"></i>Privacy</div>
+            <div class="text-[12px]" style="color:var(--text-dim)">All indexed content, activity, settings, and AI processing stay on this device. GhostOS does not add telemetry, cloud storage, or external AI APIs.</div>
+          </div>
+          <div class="flex flex-wrap gap-2 pb-6">
+            <button class="chip" style="background:var(--accent);color:#fff" onclick="saveSettingsScreen()">Save settings</button>
+            <button class="chip" onclick="resetConversation()">Reset conversation</button>
+            <button class="chip" onclick="openConnectModal()">Connect to system</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -419,6 +632,9 @@ const FILE_TYPES = {
   code:{label:'Code',color:'#22c1c3',icon:'code-2'},
   archive:{label:'Archive',color:'#f0a020',icon:'archive'},
   db:{label:'Database',color:'#14b8a6',icon:'database'},
+  app:{label:'Application',color:'#60a5fa',icon:'app-window'},
+  web:{label:'Website',color:'#38bdf8',icon:'globe-2'},
+  system:{label:'System activity',color:'#a1a1aa',icon:'settings-2'},
   txt:{label:'Text',color:'#8a8a99',icon:'file'},
 };
 function fileBadge(type,size=38){
@@ -474,6 +690,7 @@ const timelineEvents = [
   {time:'02:05 PM',app:'youtube',title:'Watched YouTube',sub:'Building a RAG system with LlamaIndex',right:'YouTube',dur:'22m 37s'},
   {time:'02:45 PM',app:'outlook',title:'Replied to email',sub:'Re: Project Update',right:'Microsoft Outlook',dur:'5m 08s'},
 ];
+let timelineSessions = [];
 const miniTimeline = [
   {time:'10:15 AM',type:'xlsx',title:'Opened Quarterly_Report.xlsx',right:'Excel'},
   {time:'10:42 AM',type:'docx',title:'Edited Marketing Plan.docx',right:'Word'},
@@ -488,19 +705,27 @@ const miniTimeline = [
 const sidebarStats = {
   assistant:{title:null,items:[['Files Indexed','128,456'],['Documents','32,104'],['Images','45,231'],['Videos','3,214'],['Audio','1,423'],['Others','46,484']]},
   timeline:{title:null,items:[['Events Today','342'],['Apps Used','28'],['Files Opened','67'],['Websites','45'],['Documents','23'],['Screenshots','12']]},
-  files:{title:null,items:[]}
+  files:{title:null,items:[]},
+  settings:{title:null,items:[]}
 };
+let systemProfile = {display_name:'User', initials:'U', username:'User', computer_name:'This PC'};
 
 // ---------- RENDER ----------
 function renderSidebarStats(screen){
   const box=document.getElementById('sidebar-stats');
   const s=sidebarStats[screen];
+  const statusLabel = !backendConnected ? 'Backend not connected'
+    : (!systemCollectorsConnected ? 'AI ready · system not connected'
+      : (backendHealthStatus==='ready' ? 'System connected' : 'System connected · setup needed'));
+  const statusDetail = !backendConnected ? 'Start the local GhostOS backend'
+    : (!systemCollectorsConnected ? 'Click Connect to System to start Timeline and file watching'
+      : (backendHealthStatus==='ready' ? 'Local collectors, database, and AI are ready' : 'Open Settings to complete local AI setup'));
   let html=`<div class="card p-3 mb-3">
     <div class="flex items-center gap-2 mb-1">
       <i data-lucide="shield-check" class="icon" style="width:15px;height:15px;color:var(--green)"></i>
-      <div class="text-[13px] font-semibold">System Connected</div>
+      <div class="text-[13px] font-semibold">${statusLabel}</div>
     </div>
-    <div class="text-[11px]" style="color:var(--text-faint)">All systems are up to date</div>
+    <div class="text-[11px]" style="color:var(--text-faint)">${statusDetail}</div>
   </div>`;
   if(s.items.length){
     html+=`<div class="flex flex-col gap-2 px-1 text-[13px]">`;
@@ -515,27 +740,92 @@ function renderSidebarStats(screen){
 function renderTopbar(screen){
   const t=document.getElementById('topbar-title');
   if(screen==='assistant'){
-    t.innerHTML=`<div class="text-[19px] font-bold">Hello, Arjun 👋</div><div class="text-[13px]" style="color:var(--text-faint)">How can I help you today?</div>`;
+    t.innerHTML=`<div class="text-[19px] font-bold">Hello, ${escapeHtml(systemProfile.display_name)} 👋</div><div class="text-[13px]" style="color:var(--text-faint)">How can I help you today?</div>`;
   } else if(screen==='timeline'){
     t.innerHTML=`<div class="text-[19px] font-bold">Timeline</div><div class="text-[13px]" style="color:var(--text-faint)">Your activity history organized chronologically</div>`;
-  } else {
+  } else if(screen==='files') {
     t.innerHTML=`<div class="flex items-center gap-2 text-[19px] font-bold"><i data-lucide="folder" class="icon" style="width:18px;height:18px"></i>Files &amp; Data</div><div class="text-[13px]" style="color:var(--text-faint)">All your files, automatically organized and always at your fingertips.</div>`;
+  } else {
+    t.innerHTML=`<div class="flex items-center gap-2 text-[19px] font-bold"><i data-lucide="settings" class="icon" style="width:18px;height:18px"></i>Settings</div><div class="text-[13px]" style="color:var(--text-faint)">Local models, privacy, permissions, and diagnostics.</div>`;
   }
   lucide.createIcons();
 }
 
 function renderMiniTimeline(){
-  document.getElementById('mini-timeline').innerHTML = miniTimeline.map((e,i)=>`
-    <div class="flex items-center gap-3 py-2.5 border-b row-hover cursor-pointer" style="border-color:var(--border-soft)" onclick="showScreen('timeline'); selectTimelineEvent(${i})">
+  const box=document.getElementById('mini-timeline');
+  if(miniTimelineLoading){
+    box.innerHTML=`<div class="p-4 text-[12px] text-center" style="color:var(--text-faint)">Loading ${escapeHtml(miniTimelineFilterLabel(miniTimelineFilter))} activity&hellip;</div>`;
+    return;
+  }
+  if(miniTimelineError){
+    box.innerHTML=`<div class="p-4 text-[12px] text-center" style="color:var(--text-faint)">${escapeHtml(miniTimelineError)} <button class="ml-1" style="color:var(--accent-2)" onclick="setMiniTimelineFilter('${miniTimelineFilter}')">Retry</button></div>`;
+    return;
+  }
+  box.innerHTML = miniTimeline.length ? miniTimeline.map((e,rawIndex)=>`
+    <div class="flex items-center gap-3 py-2.5 border-b row-hover cursor-pointer" style="border-color:var(--border-soft)" onclick="activateMiniTimelineEvent(${rawIndex})">
       <div class="text-[12px] w-[70px] flex-shrink-0" style="color:var(--text-faint)">${e.time}</div>
       ${fileBadge(e.type,26)}
       <div class="text-[13px] flex-1 truncate">${escapeHtml(e.title)}</div>
       <div class="text-[12px]" style="color:var(--text-faint)">${escapeHtml(e.right||'')}</div>
-    </div>`).join('');
+    </div>`).join('') : `<div class="p-4 text-[12px] text-center" style="color:var(--text-faint)">No ${escapeHtml(miniTimelineFilterLabel(miniTimelineFilter).toLowerCase())} activity recorded yet.</div>`;
+  lucide.createIcons();
+}
+
+function activateMiniTimelineEvent(idx){
+  const event=miniTimeline[idx];
+  if(!event) return;
+  if(event.path_or_url){ openTarget(event.path_or_url); return; }
+  const eventDate=new Date(event.timestamp);
+  if(!isNaN(eventDate)) selectedTimelineDate=eventDate;
+  showScreen('timeline');
+}
+
+let miniTimelineFilter='all';
+let miniTimelineLoading=false;
+let miniTimelineError='';
+let miniTimelineRequestId=0;
+function miniTimelineFilterLabel(filter){
+  return ({all:'All',apps:'Apps',documents:'Documents',web:'Web',system:'System'})[filter]||'All';
+}
+async function setMiniTimelineFilter(filter){
+  if(!['all','apps','documents','web','system'].includes(filter)) return;
+  miniTimelineFilter=filter;
+  document.querySelectorAll('[data-mini-filter]').forEach(tab=>tab.classList.toggle('active',tab.dataset.miniFilter===filter));
+  const requestId=++miniTimelineRequestId;
+  miniTimelineLoading=true;
+  miniTimelineError='';
+  renderMiniTimeline();
+  try{
+    const events=await apiGet(`/api/timeline?kind=${encodeURIComponent(filter)}&limit=200`,10000);
+    if(requestId!==miniTimelineRequestId) return;
+    replaceMiniTimeline(events);
+  } catch(err){
+    if(requestId!==miniTimelineRequestId) return;
+    miniTimeline.length=0;
+    miniTimelineError='Could not load this Timeline category.';
+    console.error('Timeline category error:',err);
+  } finally {
+    if(requestId===miniTimelineRequestId){
+      miniTimelineLoading=false;
+      renderMiniTimeline();
+    }
+  }
 }
 
 let activeCategoryFilter = null;
 let activeCollectionFilter = null;
+const FILE_PAGE_SIZE = 200;
+let fileListQueryParam = '';
+let fileListLabel = 'All Files';
+let fileListHasMore = false;
+let fileListLoading = false;
+
+function numericCount(value){ return parseInt(String(value||0).replace(/[^0-9]/g,''),10)||0; }
+function activeFileTotal(){
+  if(activeCategoryFilter) return numericCount(categories.find(c=>c.name===activeCategoryFilter)?.count);
+  if(activeCollectionFilter) return numericCount(collections.find(c=>c.name===activeCollectionFilter)?.count);
+  return categories.reduce((sum,c)=>sum+numericCount(c.count),0);
+}
 
 // Clicking a Categories or AI Collections tile - either mini (dashboard
 // sidebar) or full (Files & Data screen) - calls /api/recent-files with
@@ -554,27 +844,45 @@ async function filterByCollection(name){
   activeCategoryFilter = null;
   await applyFileFilter(`collection=${encodeURIComponent(name)}`, name);
 }
-async function applyFileFilter(queryParam, label){
+async function applyFileFilter(queryParam, label, append=false){
+  if(fileListLoading) return;
+  fileListLoading = true;
+  if(!append){
+    fileListQueryParam=queryParam;
+    fileListLabel=label;
+    recentFiles.length=0;
+  }
+  const heading=document.getElementById('file-list-heading');
+  if(heading) heading.textContent=fileListLabel==='All Files'?'All Files':`Files in ${fileListLabel}`;
+  renderRecentFull();
   try{
-    const separator = queryParam ? `${queryParam}&` : '';
-    const data = await apiGet(`/api/recent-files?${separator}limit=5000`, 15000);
-    recentFiles.length = 0;
+    const activeQuery = append ? fileListQueryParam : queryParam;
+    const offset = append ? recentFiles.length : 0;
+    const separator = activeQuery ? `${activeQuery}&` : '';
+    const data = await apiGet(`/api/recent-files?${separator}limit=${FILE_PAGE_SIZE}&offset=${offset}`, 15000);
     data.forEach(f => recentFiles.push({
       name:f.name, cat:f.category, type:nameToBadgeType(f.category),
-      loc:f.path.substring(0,f.path.length-f.name.length-1), time:formatTimeAgo(f.modified_at), size:formatBytes(f.size_bytes),
-      path:f.path, extension:f.extension, size_bytes:f.size_bytes, modified_at:f.modified_at,
+      loc:String(f.path||'').slice(0,Math.max(0,String(f.path||'').length-String(f.name||'').length-1)), time:formatTimeAgo(f.modified_at), size:formatBytes(f.size_bytes),
+      path:String(f.path||''), category:f.category, extension:f.extension, size_bytes:f.size_bytes, modified_at:f.modified_at,
+      embedded:f.embedded, index_status:f.index_status, index_error:f.index_error, chunks_count:f.chunks_count,
     }));
+    const total=activeFileTotal();
+    fileListHasMore = total ? recentFiles.length < total : data.length===FILE_PAGE_SIZE;
+    if(append && !data.length) showToast(`All files in ${fileListLabel} are loaded.`, false);
+    else showToast(`Showing ${recentFiles.length}${total?` of ${total}`:''} file${recentFiles.length===1?'':'s'} in ${fileListLabel}`, false);
+  } catch(err){
+    showToast("Couldn't reach the GhostOS backend.", true);
+    console.error('Category filter error:', err);
+  } finally {
+    fileListLoading = false;
     renderRecentFull();
     renderFullCategories();
     renderCollectionsFull();
     renderRecentMini();
     lucide.createIcons();
-    showToast(`Showing ${recentFiles.length} file${recentFiles.length===1?'':'s'} in ${label}`, false);
-  } catch(err){
-    showToast("Couldn't reach the GhostOS backend.", true);
-    console.error('Category filter error:', err);
   }
 }
+function loadMoreFiles(){ if(fileListHasMore) applyFileFilter(fileListQueryParam,fileListLabel,true); }
 function clearFileFilter(){
   activeCategoryFilter = null;
   activeCollectionFilter = null;
@@ -596,15 +904,41 @@ function renderCollectionsMini(){
     </div>`).join('');
 }
 function renderRecentMini(){
-  document.getElementById('recent-mini').innerHTML = recentFiles.slice(0,8).map((f,i)=>`
+  document.getElementById('recent-mini').innerHTML = recentFiles.length ? recentFiles.slice(0,8).map((f,i)=>`
     <div class="flex items-center gap-3 py-2 row-hover rounded-lg px-1 cursor-pointer" onclick="showScreen('files'); selectFile(recentFiles[${i}])">
       ${fileBadge(f.type,28)}
       <div class="min-w-0 flex-1"><div class="text-[12px] font-medium truncate">${escapeHtml(f.name)}</div><div class="text-[11px] truncate" style="color:var(--text-faint)">${escapeHtml(f.loc)}</div></div>
-    </div>`).join('');
+    </div>`).join('') : `<div class="p-4 text-[12px] text-center" style="color:var(--text-faint)">Connect to your system to index files.</div>`;
+}
+
+function formatSessionRange(start,end){
+  const options={timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'};
+  const startLabel=new Date(start).toLocaleTimeString('en-IN',options);
+  const endLabel=new Date(end||start).toLocaleTimeString('en-IN',options);
+  return `${startLabel}–${endLabel}`;
 }
 
 function renderFullTimeline(){
-  document.getElementById('full-timeline').innerHTML = timelineEvents.map((e,i)=>`
+  if(timelineSessions.length){
+    document.getElementById('full-timeline').innerHTML = timelineSessions.map(session=>`
+      <div class="card p-3 mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <div><div class="text-[13px] font-semibold">${escapeHtml(session.label)}</div><div class="text-[11px]" style="color:var(--text-faint)">${escapeHtml(formatSessionRange(session.start,session.end))} · ${session.event_count} recorded events</div></div>
+          <div class="text-[11px]" style="color:var(--text-faint)">${escapeHtml((session.applications||[]).map(a=>a.name).slice(0,3).join(', '))}</div>
+        </div>
+        ${(session.events||[]).map(event=>{
+          const idx=timelineEvents.findIndex(item=>item.timestamp===event.timestamp && item.title===event.title);
+          return `<div class="flex items-center gap-3 py-2 row-hover rounded-lg cursor-pointer" onclick="selectTimelineEvent(${idx})">
+            <div class="text-[11px] w-[75px]" style="color:var(--text-faint)">${escapeHtml(new Date(event.timestamp).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'}))}</div>
+            <div class="flex-1 min-w-0"><div class="text-[12px] truncate">${escapeHtml(event.title||'Activity')}</div><div class="text-[10px] truncate" style="color:var(--text-faint)">${escapeHtml(event.app_label||event.event_type||'')}</div></div>
+            ${event.occurrences>1?`<span class="text-[10px] px-1.5 py-0.5 rounded" style="background:#20202a">×${event.occurrences}</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+    lucide.createIcons();
+    return;
+  }
+  document.getElementById('full-timeline').innerHTML = timelineEvents.length ? timelineEvents.map((e,i)=>`
     <div class="flex items-start gap-4 py-3 px-2 rounded-lg row-hover cursor-pointer border-b" style="border-color:var(--border-soft);${i===selectedTimelineIdx?'background:#16161e':''}" onclick="selectTimelineEvent(${i})">
       <div class="text-[12px] w-[68px] flex-shrink-0 pt-1.5" style="color:var(--text-faint)">${e.time}</div>
       <div class="w-2 h-2 rounded-full mt-2.5 flex-shrink-0" style="background:var(--accent)"></div>
@@ -620,7 +954,7 @@ function renderFullTimeline(){
         ${e.dur?`<div class="text-[11px]" style="color:var(--text-faint)">${e.dur}</div>`:''}
       </div>
       <i data-lucide="more-vertical" class="icon flex-shrink-0" style="width:14px;height:14px;color:var(--text-faint)"></i>
-    </div>`).join('');
+    </div>`).join('') : `<div class="p-8 text-[13px] text-center" style="color:var(--text-faint)">No recorded activity for this date.</div>`;
   lucide.createIcons();
 }
 
@@ -643,7 +977,10 @@ function renderCollectionsFull(){
     </div>`).join('');
 }
 function renderRecentFull(){
-  document.getElementById('recent-full').innerHTML = recentFiles.map((f,i)=>`
+  const emptyMessage=fileListLoading
+    ? `Loading ${escapeHtml(fileListLabel)} files…`
+    : `No indexed files were returned for ${escapeHtml(fileListLabel)}.`;
+  document.getElementById('recent-full').innerHTML = recentFiles.length ? recentFiles.map((f,i)=>`
     <tr class="row-hover border-t cursor-pointer" style="border-color:var(--border-soft)" onclick="selectFile(recentFiles[${i}])">
       <td class="px-4 py-2.5"><div class="flex items-center gap-2.5">${fileBadge(f.type,26)}<span class="font-medium">${escapeHtml(f.name)}</span></div></td>
       <td class="px-4 py-2.5" style="color:var(--text-dim)">${escapeHtml(f.cat)}</td>
@@ -651,11 +988,127 @@ function renderRecentFull(){
       <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.time)}</td>
       <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.size)}</td>
       <td class="px-3 py-2.5"><i data-lucide="more-vertical" class="icon" style="width:14px;height:14px;color:var(--text-faint)"></i></td>
-    </tr>`).join('');
+    </tr>`).join('') : `<tr><td colspan="6" class="p-8 text-center text-[13px]" style="color:var(--text-faint)">${emptyMessage}</td></tr>`;
+  renderFilePager();
 }
+function renderFilePager(){
+  const summary=document.getElementById('file-list-summary');
+  const more=document.getElementById('file-list-more');
+  if(!summary||!more) return;
+  const total=activeFileTotal();
+  summary.textContent=total
+    ? `Loaded ${recentFiles.length.toLocaleString()} of ${total.toLocaleString()} files · ${fileListLabel}`
+    : `Loaded ${recentFiles.length.toLocaleString()} files · ${fileListLabel}`;
+  more.classList.toggle('hidden',!fileListHasMore);
+  more.disabled=fileListLoading;
+  more.textContent=fileListLoading?'Loading…':`Load next ${FILE_PAGE_SIZE}`;
+}
+let fileListSeenKeys = new Set();
+let fileListObserver = null;
+
+function refreshFileListObserver(){
+  const scrollArea = document.getElementById('recent-full-scroll');
+  const sentinel = document.getElementById('file-list-sentinel');
+  if(!scrollArea || !sentinel || !window.IntersectionObserver) return;
+  if(fileListObserver) fileListObserver.disconnect();
+  fileListObserver = new IntersectionObserver((entries) => {
+    if(entries.some(entry => entry.isIntersecting) && fileListHasMore && !fileListLoading){
+      loadMoreFiles();
+    }
+  }, { root: scrollArea, rootMargin: '180px 0px' });
+  fileListObserver.observe(sentinel);
+}
+
+async function applyFileFilter(queryParam, label, append=false){
+  if(fileListLoading) return;
+  fileListLoading = true;
+  const loadingMore = document.getElementById('file-list-loading-more');
+  if(!append){
+    fileListQueryParam=queryParam;
+    fileListLabel=label;
+    recentFiles.length=0;
+    fileListSeenKeys = new Set();
+  }
+  if(loadingMore) loadingMore.classList.toggle('hidden', !append);
+  const heading=document.getElementById('file-list-heading');
+  if(heading) heading.textContent=fileListLabel==='All Files'?'All Files':`Files in ${fileListLabel}`;
+  renderRecentFull();
+  try{
+    const activeQuery = append ? fileListQueryParam : queryParam;
+    const offset = append ? recentFiles.length : 0;
+    const separator = activeQuery ? `${activeQuery}&` : '';
+    const data = await apiGet(`/api/recent-files?${separator}limit=${FILE_PAGE_SIZE}&offset=${offset}`, 15000);
+    data.forEach(f => {
+      const key = String(f.path || `${f.name || ''}|${f.modified_at || ''}`).replace(/\\/g,'/').toLowerCase();
+      if(fileListSeenKeys.has(key)) return;
+      fileListSeenKeys.add(key);
+      recentFiles.push({
+        name:f.name, cat:f.category, type:nameToBadgeType(f.category),
+        loc:String(f.path||'').slice(0,Math.max(0,String(f.path||'').length-String(f.name||'').length-1)), time:formatTimeAgo(f.modified_at), size:formatBytes(f.size_bytes),
+        path:String(f.path||''), category:f.category, extension:f.extension, size_bytes:f.size_bytes, modified_at:f.modified_at,
+        embedded:f.embedded, index_status:f.index_status, index_error:f.index_error, chunks_count:f.chunks_count,
+      });
+    });
+    const total=activeFileTotal();
+    fileListHasMore = total ? recentFiles.length < total : data.length===FILE_PAGE_SIZE;
+    if(append && !data.length) showToast(`All files in ${fileListLabel} are loaded.`, false);
+    else showToast(`Showing ${recentFiles.length}${total?` of ${total}`:''} file${recentFiles.length===1?'':'s'} in ${fileListLabel}`, false);
+  } catch(err){
+    showToast("Couldn't reach the GhostOS backend.", true);
+    console.error('Category filter error:', err);
+  } finally {
+    fileListLoading = false;
+    if(loadingMore) loadingMore.classList.add('hidden');
+    renderRecentFull();
+    renderFullCategories();
+    renderCollectionsFull();
+    renderRecentMini();
+    lucide.createIcons();
+    refreshFileListObserver();
+  }
+}
+
+function loadMoreFiles(){ if(fileListHasMore && !fileListLoading) applyFileFilter(fileListQueryParam,fileListLabel,true); }
+
+function clearFileFilter(){
+  activeCategoryFilter = null;
+  activeCollectionFilter = null;
+  applyFileFilter('', 'All Files');
+}
+
+function renderRecentFull(){
+  const emptyMessage=fileListLoading
+    ? `Loading ${escapeHtml(fileListLabel)} files...`
+    : `No indexed files were returned for ${escapeHtml(fileListLabel)}.`;
+  document.getElementById('recent-full').innerHTML = recentFiles.length ? recentFiles.map((f,i)=>`
+    <tr class="row-hover border-t cursor-pointer" style="border-color:var(--border-soft)" onclick="selectFile(recentFiles[${i}])">
+      <td class="px-4 py-2.5"><div class="flex items-center gap-2.5">${fileBadge(f.type,26)}<span class="font-medium">${escapeHtml(f.name)}</span></div></td>
+      <td class="px-4 py-2.5" style="color:var(--text-dim)">${escapeHtml(f.cat)}</td>
+      <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.loc)}</td>
+      <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.time)}</td>
+      <td class="px-4 py-2.5" style="color:var(--text-faint)">${escapeHtml(f.size)}</td>
+      <td class="px-3 py-2.5"><i data-lucide="more-vertical" class="icon" style="width:14px;height:14px;color:var(--text-faint)"></i></td>
+    </tr>`).join('') : `<tr><td colspan="6" class="p-8 text-center text-[13px]" style="color:var(--text-faint)">${emptyMessage}</td></tr>`;
+  renderFilePager();
+}
+
+function renderFilePager(){
+  const summary=document.getElementById('file-list-summary');
+  const more=document.getElementById('file-list-more');
+  const loading=document.getElementById('file-list-loading-more');
+  if(!summary||!more||!loading) return;
+  const total=activeFileTotal();
+  summary.textContent=total
+    ? `Loaded ${recentFiles.length.toLocaleString()} of ${total.toLocaleString()} files · ${fileListLabel}`
+    : `Loaded ${recentFiles.length.toLocaleString()} files · ${fileListLabel}`;
+  loading.classList.toggle('hidden', !fileListLoading || !fileListHasMore);
+  more.classList.toggle('hidden',!fileListHasMore);
+  more.disabled=fileListLoading;
+  more.textContent=fileListLoading?'Loading...':`Load next ${FILE_PAGE_SIZE}`;
+}
+
 function renderQuickAccess(){
-  const types=['pdf','xlsx','docx','image','video','audio'];
-  document.getElementById('quick-access').innerHTML = categories.filter(c=>types.includes(c.type)).map(c=>`
+  document.getElementById('quick-access').innerHTML = categories.map(c=>`
     <div class="cat-tile flex-col items-start gap-2 cursor-pointer" style="padding:12px" onclick="filterByCategory('${c.name.replace(/'/g,"\\'")}')">
       ${fileBadge(c.type,30)}
       <div><div class="text-[12px] font-medium">${c.name}</div><div class="text-[11px]" style="color:var(--text-faint)">${c.count} files</div></div>
@@ -683,10 +1136,22 @@ async function openTarget(target){
     const res = await fetch(API_BASE + '/api/open', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target})
     });
-    if(!res.ok) throw new Error((await res.json()).error || `Open failed (${res.status})`);
+    const payload=await res.json();
+    if(!res.ok) throw new Error(payload.error?.message || payload.error || payload.message || `Open failed (${res.status})`);
+    showToast(payload.message||'Opened successfully.',false);
   } catch(err){
     showToast(`Could not open: ${err.message}`, true);
   }
+}
+
+async function runAction(action, argumentsObject){
+  try{
+    const response=await fetch(API_BASE+'/api/actions/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,arguments:argumentsObject})});
+    const result=await response.json();
+    if(!response.ok || !result.success) throw new Error(result.error?.message||result.message||'Action failed.');
+    showToast(result.message||'Action completed.',false);
+    return true;
+  } catch(err){ showToast(err.message,true); return false; }
 }
 
 function selectFile(file){
@@ -694,6 +1159,13 @@ function selectFile(file){
   showScreen('files');
   renderFileDetail(file);
   if(file && file.path) openTarget(file.path);
+}
+
+function openSelectedFileFolder(){
+  if(!selectedFile?.path) return;
+  const separator=Math.max(selectedFile.path.lastIndexOf('\\'),selectedFile.path.lastIndexOf('/'));
+  if(separator<1) return showToast('The parent folder is unavailable.',true);
+  runAction('open_folder',{path:selectedFile.path.slice(0,separator)});
 }
 
 function askAboutItem(name){
@@ -707,11 +1179,13 @@ function renderFileDetail(file){
     panel.innerHTML = `<div class="h-full flex items-center justify-center text-[13px] text-center p-6" style="color:var(--text-faint)">Select a file from the list to see its details.</div>`;
     return;
   }
-  const badgeType = nameToBadgeType(file.category || '');
+  const badgeType = file.type || nameToBadgeType(file.category || file.cat || '');
   const typeLabel = (FILE_TYPES[badgeType] || FILE_TYPES.txt).label;
   const sizeLabel = file.size_bytes != null ? formatBytes(file.size_bytes) : (file.size || '—');
   const modifiedLabel = file.modified_at ? formatFullDateTime(file.modified_at) : (file.time || '—');
   const locationLabel = file.path ? file.path.slice(0, Math.max(0, file.path.length - (file.name||'').length - 1)) || file.path : (file.loc || '—');
+  const indexStatus = file.index_status || (file.embedded ? 'embedded' : 'catalogued');
+  const indexColor = indexStatus==='failed' ? '#e07a7a' : (file.embedded ? 'var(--green)' : 'var(--text-faint)');
 
   panel.innerHTML = `
     <div class="flex items-start gap-3 mb-4">
@@ -727,8 +1201,15 @@ function renderFileDetail(file){
       <div class="flex justify-between gap-3"><span style="color:var(--text-faint);flex-shrink:0">Location</span><span class="text-right truncate" title="${escapeHtml(file.path||locationLabel)}">${escapeHtml(locationLabel)}</span></div>
       <div class="flex justify-between"><span style="color:var(--text-faint)">Modified</span><span>${escapeHtml(modifiedLabel)}</span></div>
       <div class="flex justify-between"><span style="color:var(--text-faint)">Size</span><span>${escapeHtml(sizeLabel)}</span></div>
+      <div class="flex justify-between"><span style="color:var(--text-faint)">Search index</span><span style="color:${indexColor}">${escapeHtml(file.embedded ? `Embedded (${file.chunks_count||0} chunks)` : indexStatus.replaceAll('_',' '))}</span></div>
+      ${file.index_error ? `<div class="rounded-lg p-2" style="background:#241818;color:#e07a7a">${escapeHtml(file.index_error)}</div>` : ''}
     </div>
-    <div class="chip justify-center" style="color:var(--accent-2)" onclick="askAboutItem('${escapeHtml((file.name||'this file').replace(/'/g,"\\'"))}')"><i data-lucide="sparkles" class="icon" style="width:13px;height:13px"></i>Ask AI about this file</div>
+    <div class="grid grid-cols-2 gap-2 mb-2">
+      <button class="chip justify-center" onclick="openTarget(selectedFile?.path)"><i data-lucide="external-link" class="icon" style="width:13px;height:13px"></i>Open</button>
+      <button class="chip justify-center" onclick="openSelectedFileFolder()"><i data-lucide="folder-open" class="icon" style="width:13px;height:13px"></i>Open folder</button>
+      <button class="chip justify-center" onclick="runAction('reveal_in_explorer',{path:selectedFile?.path})"><i data-lucide="scan-search" class="icon" style="width:13px;height:13px"></i>Reveal</button>
+      <button class="chip justify-center" style="color:var(--accent-2)" onclick="askAboutItem('${escapeHtml((file.name||'this file').replace(/'/g,"\\'"))}')"><i data-lucide="sparkles" class="icon" style="width:13px;height:13px"></i>Ask AI</button>
+    </div>
   `;
   lucide.createIcons();
 }
@@ -736,10 +1217,14 @@ function renderFileDetail(file){
 const EVENT_TYPE_BADGE = {
   file_indexed: {c:'#2b579a', icon:'file-text'},
   browser_visit: {c:'#33b0e6', icon:'globe'},
+  browser_history: {c:'#33b0e6', icon:'globe'},
+  browser_bookmark: {c:'#f0a020', icon:'bookmark'},
+  browser_download: {c:'#3ecf7e', icon:'download'},
   app_focus: {c:'#6d5bf8', icon:'app-window'},
 };
 
 function selectTimelineEvent(idx){
+  if(idx < 0 || idx >= timelineEvents.length) return;
   selectedTimelineIdx = Math.min(idx, timelineEvents.length - 1);
   renderEventDetail(timelineEvents[selectedTimelineIdx]);
   renderFullTimeline();
@@ -756,17 +1241,30 @@ async function loadTimelineForDate(){
   const key = timelineDateKey(selectedTimelineDate);
   document.getElementById('timeline-date-input').value = key;
   document.getElementById('timeline-date-label').textContent = selectedTimelineDate.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('timeline-day-heading').textContent = selectedTimelineDate.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
   try{
-    const data = await apiGet(`/api/timeline?date=${key}&limit=500`, 8000);
+    const [data, summary, sessions] = await Promise.all([
+      apiGet(`/api/timeline?date=${key}&limit=500`, 8000),
+      apiGet(`/api/timeline/summary?date=${key}`, 8000),
+      apiGet(`/api/timeline/sessions?date=${key}&limit=1000`, 8000),
+    ]);
     timelineEvents.length = 0;
     data.forEach(e => timelineEvents.push({
       time:new Date(e.timestamp).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',second:'2-digit'}),
-      app:e.badge_type==='video'?'youtube':'explorer', title:e.title, sub:e.subtitle, right:e.app_label, dur:'',
+      app:timelineAppBadgeKey(e), title:e.title, sub:e.subtitle, right:e.app_label, dur:'',
       event_type:e.event_type, path_or_url:e.path_or_url, timestamp:e.timestamp, badge_type:e.badge_type,
     }));
+    timelineSessions = sessions;
     selectedTimelineIdx = null;
     renderFullTimeline(); renderEventDetail(null);
-  } catch(err){ showToast('Could not load timeline for that date.', true); }
+    const topApps = (summary.top_applications||[]).slice(0,3).map(a=>`${a.name} (${a.count})`).join(', ');
+    document.getElementById('timeline-daily-summary').textContent = `${summary.message}${topApps ? ` Top apps: ${topApps}.` : ''}`;
+  } catch(err){
+    timelineEvents.length=0; timelineSessions=[]; selectedTimelineIdx=null;
+    renderFullTimeline(); renderEventDetail(null);
+    document.getElementById('timeline-daily-summary').textContent='Timeline data is unavailable for this date.';
+    showToast('Could not load timeline for that date.', true);
+  }
 }
 function changeTimelineDay(delta){ selectedTimelineDate.setDate(selectedTimelineDate.getDate()+delta); loadTimelineForDate(); }
 function setTimelineDate(value){ if(value){ selectedTimelineDate = new Date(`${value}T12:00:00`); loadTimelineForDate(); } }
@@ -777,8 +1275,9 @@ function renderEventDetail(e){
     panel.innerHTML = `<div class="h-full flex items-center justify-center text-[13px] text-center p-6" style="color:var(--text-faint)">Select an item from the timeline to see details.</div>`;
     return;
   }
-  const badgeInfo = EVENT_TYPE_BADGE[e.event_type] || {c:'#8a8a99', icon:'clock'};
-  const isUrl = e.event_type === 'browser_visit';
+  const eventFileType=FILE_TYPES[timelineEventBadgeType(e)]||FILE_TYPES.txt;
+  const badgeInfo = EVENT_TYPE_BADGE[e.event_type] || {c:eventFileType.color, icon:eventFileType.icon};
+  const isUrl = /^https?:\/\//i.test(e.path_or_url||'');
   panel.innerHTML = `
     <div class="flex items-center justify-between p-4 border-b" style="border-color:var(--border-soft)">
       <div class="flex items-center gap-2 min-w-0">
@@ -804,12 +1303,14 @@ function renderEventDetail(e){
 }
 
 function showScreen(screen){
-  ['assistant','timeline','files'].forEach(s=>{
+  if(screen !== 'assistant') stopVoiceRecognition(false);
+  ['assistant','timeline','files','settings'].forEach(s=>{
     document.getElementById('screen-'+s).classList.toggle('hidden', s!==screen);
     document.querySelector(`.nav-item[data-screen="${s}"]`).classList.toggle('active', s===screen);
   });
   renderSidebarStats(screen);
   renderTopbar(screen);
+  if(screen==='timeline') loadTimelineForDate();
   lucide.createIcons();
 }
 
@@ -818,8 +1319,10 @@ function showScreen(screen){
 // exposes /api/categories, /api/collections, /api/recent-files, /api/storage,
 // /api/timeline, /api/stats. If it isn't running (e.g. previewing this file
 // standalone), we fall back to the demo data above so the screens still render.
-const API_BASE = "http://127.0.0.1:5000";
+const API_BASE = window.location.protocol.startsWith('http') ? window.location.origin : "http://127.0.0.1:5000";
 let backendConnected = false;
+let backendHealthStatus = 'offline';
+let systemCollectorsConnected = false;
 
 async function apiGet(path, timeoutMs = 2500){
   const res = await fetch(API_BASE + path, { signal: AbortSignal.timeout(timeoutMs) });
@@ -972,11 +1475,95 @@ function badgeTypeToFileType(bt){
   return map[bt] || 'txt';
 }
 
+function timelineEventKind(eventType){
+  const type=String(eventType||'').toLowerCase();
+  if(type==='app_focus') return 'apps';
+  if(type.startsWith('file_')) return 'documents';
+  if(type.startsWith('browser_')) return 'web';
+  return 'system';
+}
+
+function timelineDocumentBadgeType(event){
+  const backendType=badgeTypeToFileType(event?.badge_type);
+  if(backendType!=='txt') return backendType;
+  const target=String(event?.path_or_url||event?.title||'').split(/[?#]/,1)[0];
+  const match=target.match(/\.([a-z0-9]+)$/i);
+  const ext=match ? match[1].toLowerCase() : '';
+  const byExtension={
+    pdf:'pdf',doc:'docx',docx:'docx',rtf:'docx',odt:'docx',
+    xls:'xlsx',xlsx:'xlsx',csv:'xlsx',ods:'xlsx',
+    ppt:'pptx',pptx:'pptx',odp:'pptx',
+    png:'image',jpg:'image',jpeg:'image',gif:'image',webp:'image',bmp:'image',svg:'image',
+    mp4:'video',mkv:'video',mov:'video',avi:'video',webm:'video',
+    mp3:'audio',wav:'audio',m4a:'audio',flac:'audio',ogg:'audio',
+    py:'code',js:'code',ts:'code',tsx:'code',jsx:'code',html:'code',css:'code',json:'code',java:'code',cpp:'code',c:'code',cs:'code',go:'code',rs:'code',
+    zip:'archive',rar:'archive','7z':'archive',tar:'archive',gz:'archive',
+    db:'db',sqlite:'db',sqlite3:'db',
+  };
+  return byExtension[ext]||'txt';
+}
+
+function timelineEventBadgeType(event){
+  const kind=timelineEventKind(event?.event_type);
+  if(kind==='documents') return timelineDocumentBadgeType(event);
+  if(kind==='apps') return 'app';
+  if(kind==='web') return 'web';
+  return 'system';
+}
+
+function timelineAppBadgeKey(event){
+  const kind=timelineEventKind(event?.event_type);
+  if(kind==='documents') return 'explorer';
+  if(kind==='system') return 'system';
+  const label=String(event?.app_label||event?.title||'').toLowerCase();
+  if(label.includes('chrome')) return 'chrome';
+  if(label.includes('edge')) return 'edge';
+  if(label.includes('code')) return 'vscode';
+  if(label.includes('excel')) return 'excel';
+  if(label.includes('word')) return 'word';
+  if(label.includes('teams')) return 'teams';
+  if(label.includes('outlook')) return 'outlook';
+  if(label.includes('acrobat')||label.includes('pdf')) return 'acrobat';
+  if(kind==='web') return 'edge';
+  return 'system';
+}
+
+function timelineTimeLabel(timestamp){
+  const value=new Date(timestamp);
+  return isNaN(value) ? String(timestamp||'') : value.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit'});
+}
+
+function replaceMiniTimeline(events){
+  miniTimeline.length=0;
+  (Array.isArray(events)?events:[]).forEach(event=>miniTimeline.push({
+    time:timelineTimeLabel(event.timestamp),
+    type:timelineEventBadgeType(event),
+    title:event.title||'Activity',
+    right:event.app_label||miniTimelineFilterLabel(timelineEventKind(event.event_type)),
+    event_type:event.event_type,
+    badge_type:event.badge_type,
+    path_or_url:event.path_or_url,
+    timestamp:event.timestamp,
+  }));
+}
+
 function formatBytes(bytes){
   if(!bytes) return '0 KB';
   const units=['B','KB','MB','GB','TB']; let i=0; let n=bytes;
   while(n>=1024 && i<units.length-1){ n/=1024; i++; }
   return `${n.toFixed(i===0?0:1)} ${units[i]}`;
+}
+function renderStorage(storage){
+  const colors={Documents:'#6d5bf8',Images:'#3ecf7e',Videos:'#ff5c8a',Others:'#4b4b58'};
+  const total=storage.reduce((sum,item)=>sum+(Number(item.bytes)||0),0);
+  document.getElementById('storage-total').textContent=formatBytes(total);
+  let cursor=0;
+  const segments=storage.map(item=>{
+    const start=cursor; cursor += total ? ((Number(item.bytes)||0)/total)*100 : 0;
+    return `${colors[item.name]||'#4b4b58'} ${start}% ${cursor}%`;
+  });
+  document.getElementById('storage-chart').style.background=total ? `conic-gradient(${segments.join(',')})` : '#24242e';
+  document.getElementById('storage-legend').innerHTML=storage.map(item=>`<div class="flex justify-between items-center"><span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:${colors[item.name]||'#4b4b58'}"></span>${escapeHtml(item.name)}</span><span style="color:var(--text-faint)">${formatBytes(Number(item.bytes)||0)}</span></div>`).join('');
 }
 function formatTimeAgo(iso){
   if(!iso) return '';
@@ -998,11 +1585,21 @@ async function loadRealData(){
     }
     const statsData = health.database || await apiGet('/api/stats');
     backendConnected = true;
+    backendHealthStatus = health.status || 'degraded';
+    systemCollectorsConnected = Boolean(health.watcher?.active || health.activity_tracker?.active || health.browser_connector?.active);
     const aiReady = health.status === 'ready';
-    badge.textContent = aiReady ? 'Connected · AI ready' : 'Connected · Ollama setup needed';
-    badge.title = aiReady ? 'GhostOS and its local models are ready' : (health.ollama?.error || 'Install the configured Ollama models');
+    badge.textContent = aiReady
+      ? (systemCollectorsConnected ? 'Connected · AI ready' : 'AI ready · connect system')
+      : (systemCollectorsConnected ? 'System connected · Ollama setup needed' : 'Ollama setup needed · connect system');
+    badge.title = aiReady
+      ? (systemCollectorsConnected ? 'GhostOS collectors and local models are ready' : 'Local AI is ready; connect the system to start file and Timeline collectors')
+      : (health.ollama?.error || 'Install the configured Ollama models');
     badge.style.background = aiReady ? '#16211b' : '#2a2015';
     badge.style.color = aiReady ? 'var(--green)' : '#e0a83a';
+    const filesStatusLabel=document.getElementById('files-system-status-label');
+    const filesStatusDetail=document.getElementById('files-system-status-detail');
+    if(filesStatusLabel) filesStatusLabel.textContent=systemCollectorsConnected?'Connected':'Not connected';
+    if(filesStatusDetail) filesStatusDetail.textContent=systemCollectorsConnected?'Timeline and file collectors are active':'Use Connect to System to start local collectors';
 
     const [cats, cols, recent, storage, timeline] = await Promise.all([
       apiGet('/api/categories'), apiGet('/api/collections'),
@@ -1010,7 +1607,7 @@ async function loadRealData(){
       apiGet('/api/timeline?limit=50'),
     ]);
 
-    if(cats.length){
+    {
       categories.length = 0;
       cats.forEach(c => categories.push({name:c.name, count:c.count.toLocaleString(), type: nameToBadgeType(c.name)}));
 
@@ -1037,54 +1634,71 @@ async function loadRealData(){
         ['Others', buckets.Others.toLocaleString()],
       ];
     }
-    if(cols.length){
+    {
       collections.length = 0;
       const iconMap={Work:'briefcase',College:'graduation-cap',Personal:'user',Finance:'dollar-sign',Projects:'folder'};
       const colorMap={Work:'#6d5bf8',College:'#3b82f6',Personal:'#a855f7',Finance:'#3ecf7e',Projects:'#f0a020'};
       cols.forEach(c => collections.push({name:c.name, count:`${c.count.toLocaleString()} files`, icon:iconMap[c.name]||'folder', c:colorMap[c.name]||'#8a8a99'}));
     }
-    if(recent.length){
-      recentFiles.length = 0;
-      recent.forEach(f => recentFiles.push({
-        name:f.name, cat:f.category, type:nameToBadgeType(f.category),
-        loc:f.path.substring(0,f.path.length-f.name.length-1), time:formatTimeAgo(f.modified_at), size:formatBytes(f.size_bytes),
-        // raw fields, kept alongside the display-formatted ones above, so the
-        // detail panel can render real data when a row is clicked
-        path:f.path, extension:f.extension, size_bytes:f.size_bytes, modified_at:f.modified_at,
-      }));
+    {
+      // A background refresh must not silently replace a category/collection
+      // the user is browsing.  The unfiltered view starts with one bounded
+      // page and exposes Load more until every catalogued file is reachable.
+      if(!activeCategoryFilter && !activeCollectionFilter){
+        fileListQueryParam='';
+        fileListLabel='All Files';
+        recentFiles.length = 0;
+        recent.forEach(f => recentFiles.push({
+          name:f.name, cat:f.category, type:nameToBadgeType(f.category),
+          loc:f.path.substring(0,f.path.length-f.name.length-1), time:formatTimeAgo(f.modified_at), size:formatBytes(f.size_bytes),
+          // raw fields, kept alongside the display-formatted ones above, so the
+          // detail panel can render real data when a row is clicked
+          path:f.path, category:f.category, extension:f.extension, size_bytes:f.size_bytes, modified_at:f.modified_at,
+          embedded:f.embedded, index_status:f.index_status, index_error:f.index_error, chunks_count:f.chunks_count,
+        }));
+        fileListHasMore=recentFiles.length < activeFileTotal();
+      }
     }
-    if(timeline.length){
+    {
       timelineEvents.length = 0;
-      miniTimeline.length = 0;
       timeline.slice().reverse().forEach(e => {
-        const t = new Date(e.timestamp);
-        const timeLabel = isNaN(t) ? e.timestamp : t.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+        const timeLabel=timelineTimeLabel(e.timestamp);
         timelineEvents.push({
-          time:timeLabel, app:e.badge_type==='video'?'youtube':'explorer', title:e.title, sub:e.subtitle, right:e.app_label, dur:'',
+          time:timeLabel, app:timelineAppBadgeKey(e), title:e.title, sub:e.subtitle, right:e.app_label, dur:'',
           // raw fields for the detail panel
           event_type:e.event_type, badge_type:e.badge_type, path_or_url:e.path_or_url, timestamp:e.timestamp,
         });
-        miniTimeline.push({time:timeLabel, type:badgeTypeToFileType(e.badge_type), title:e.title, right:e.app_label});
       });
 
-      // GhostOS doesn't currently filter events by calendar day (get_timeline
-      // returns "most recent N" regardless of date - see vectorstore.py), so
-      // this is labeled "Recent" rather than "Today" to stay honest about
-      // what it's actually counting.
+      // Undated Timeline responses are newest-first. Keep the dashboard in
+      // that useful order, and only replace it here when the All tab is active;
+      // every other tab owns its own category-specific backend request.
+      if(miniTimelineFilter==='all'){
+        miniTimelineError='';
+        replaceMiniTimeline(timeline);
+      }
+
+      // Sidebar totals describe the bounded recent feed. Prefix matching keeps
+      // file_opened/file_modified and future file/browser event variants in
+      // their honest Documents and Web buckets.
       const appsUsed = new Set(timeline.map(e => e.app_label).filter(Boolean)).size;
-      const filesIndexedCount = timeline.filter(e => e.event_type === 'file_indexed').length;
-      const websitesCount = timeline.filter(e => e.event_type === 'browser_visit').length;
+      const documentEventsCount = timeline.filter(e => String(e.event_type||'').startsWith('file_')).length;
+      const websitesCount = timeline.filter(e => String(e.event_type||'').startsWith('browser_')).length;
       sidebarStats.timeline.items = [
         ['Recent Events', timeline.length.toLocaleString()],
         ['Apps / Sources', appsUsed.toLocaleString()],
-        ['Files Indexed', filesIndexedCount.toLocaleString()],
-        ['Websites Visited', websitesCount.toLocaleString()],
+        ['Document Events', documentEventsCount.toLocaleString()],
+        ['Web Events', websitesCount.toLocaleString()],
       ];
     }
     const storageMap = Object.fromEntries(storage.map(s=>[s.name, s.bytes]));
     window.__storageBytes = storageMap;
+    renderStorage(storage);
+    loadInsights();
   } catch(err){
     backendConnected = false;
+    backendHealthStatus = 'offline';
+    systemCollectorsConnected = false;
     badge.textContent = 'Demo mode · backend not connected';
     badge.style.background = '#2a2015';
     badge.style.color = '#e0a83a';
@@ -1094,9 +1708,12 @@ async function loadRealData(){
 async function loadSystemProfile(){
   try{
     const profile = await apiGet('/api/profile', 4000);
+    systemProfile = profile;
     document.getElementById('profile-name').textContent = profile.display_name;
     document.getElementById('profile-initials').textContent = profile.initials;
     document.getElementById('profile-name').title = `${profile.username} on ${profile.computer_name}`;
+    const active = document.querySelector('.nav-item.active');
+    if(active) renderTopbar(active.dataset.screen);
   } catch(err){ console.warn('Could not load system profile:', err); }
 }
 
@@ -1119,6 +1736,167 @@ function showToast(message, isError){
   window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500);
 }
 
+let currentSettings = null;
+let assistantInsights = [];
+
+async function loadInsights(){
+  const box=document.getElementById('assistant-insights');
+  if(!box) return;
+  try{
+    const payload=await apiGet('/api/insights',5000);
+    assistantInsights=payload.insights||[];
+    if(!assistantInsights.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
+    box.classList.remove('hidden');
+    box.innerHTML=`<div class="text-[11px] font-semibold mb-2" style="color:var(--text-faint)">LOCAL INSIGHTS</div>`+assistantInsights.slice(0,2).map((insight,index)=>`<div class="card p-3 mb-2 flex items-start justify-between gap-3"><div class="min-w-0"><div class="text-[12px] font-semibold">${escapeHtml(insight.title)}</div><div class="text-[11px]" style="color:var(--text-dim)">${escapeHtml(insight.message)}</div>${insight.target?`<button class="text-[11px] mt-1 cursor-pointer bg-transparent" style="color:var(--accent-2)" onclick="openInsightTarget(${index})">Open evidence</button>`:''}</div><button class="bg-transparent cursor-pointer" title="Dismiss this insight" style="color:var(--text-faint)" onclick="dismissLocalInsight(${index})">×</button></div>`).join('');
+  } catch(err){ box.classList.add('hidden'); }
+}
+
+function openInsightTarget(index){ const target=assistantInsights[index]?.target; if(target) openTarget(target); }
+async function dismissLocalInsight(index){
+  const insight=assistantInsights[index]; if(!insight) return;
+  try{ await fetch(API_BASE+`/api/insights/${encodeURIComponent(insight.id)}/dismiss`,{method:'POST'}); await loadInsights(); }
+  catch(err){ showToast('Could not dismiss the insight.',true); }
+}
+
+async function loadSettingsScreen(){
+  try{
+    const payload = await apiGet('/api/settings', 5000);
+    currentSettings = payload.settings;
+    document.getElementById('setting-ollama-url').value = currentSettings.ollama_url;
+    document.getElementById('setting-chat-model').value = currentSettings.chat_model;
+    document.getElementById('setting-embed-model').value = currentSettings.embedding_model;
+    document.getElementById('setting-ocr').checked = currentSettings.ocr_enabled;
+    document.getElementById('setting-activity').checked = currentSettings.activity_tracking_enabled;
+    document.getElementById('setting-browser').checked = currentSettings.browser_history_enabled;
+    document.getElementById('setting-drive-scan').checked = currentSettings.scan_entire_drives;
+    document.getElementById('setting-indexed-folders').value = (currentSettings.indexed_folders||[]).join('\n');
+    document.getElementById('setting-excluded-folders').value = (currentSettings.excluded_folders||[]).join('\n');
+    document.getElementById('settings-actions').innerHTML = Object.entries(currentSettings.action_permissions).map(([name,enabled])=>
+      `<label class="flex items-center gap-2"><input type="checkbox" data-action-permission="${escapeHtml(name)}" ${enabled?'checked':''}/>${escapeHtml(name.replaceAll('_',' '))}</label>`
+    ).join('');
+    await Promise.all([loadDiagnostics(), loadIndexManagement()]);
+  } catch(err){ showToast(`Could not load settings: ${err.message}`, true); }
+}
+
+async function saveSettingsScreen(){
+  const action_permissions = {};
+  document.querySelectorAll('[data-action-permission]').forEach(input=>action_permissions[input.dataset.actionPermission]=input.checked);
+  const body = {
+    ollama_url:document.getElementById('setting-ollama-url').value.trim(),
+    chat_model:document.getElementById('setting-chat-model').value.trim(),
+    embedding_model:document.getElementById('setting-embed-model').value.trim(),
+    ocr_enabled:document.getElementById('setting-ocr').checked,
+    activity_tracking_enabled:document.getElementById('setting-activity').checked,
+    browser_history_enabled:document.getElementById('setting-browser').checked,
+    scan_entire_drives:document.getElementById('setting-drive-scan').checked,
+    indexed_folders:document.getElementById('setting-indexed-folders').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),
+    excluded_folders:document.getElementById('setting-excluded-folders').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),
+    action_permissions,
+  };
+  try{
+    const response=await fetch(API_BASE+'/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await response.json(); if(!response.ok) throw new Error(data.error||'Save failed');
+    currentSettings=data.settings; showToast('Settings saved. Restart backend for model changes.',false);
+  } catch(err){ showToast(`Could not save settings: ${err.message}`,true); }
+}
+
+async function loadDiagnostics(){
+  const box=document.getElementById('settings-diagnostics');
+  try{
+    const response=await fetch(API_BASE+'/api/diagnostics');
+    const data=await response.json();
+    const lines=[
+      `Status: ${data.status}`,
+      `Ollama: ${data.ollama.available?'available':'unavailable'}`,
+      `Chat model: ${data.ollama.chat_model?'ready':'missing'}`,
+      `Embedding model: ${data.ollama.embedding_model?'ready':'missing'}`,
+      `SQLite: ${data.database.available?'ready':'unavailable'} · ${data.database.total_files||0} files · ${data.database.total_chunks||0} chunks`,
+      `Watcher: ${data.watcher.active?'active':'not started'} · ${(data.watcher.folders||[]).length} folders`,
+      `Activity tracker: ${data.activity_tracker.active?'active':'not started'}`,
+      `Browser connector: ${(data.browser_connector.detected_browsers||[]).join(', ')||'no browser history detected'}`,
+      `OCR: ${data.ocr.available?'installed':'not installed'}${data.ocr.enabled?' · enabled':''}`,
+    ];
+    if(data.problems?.length) lines.push('',...data.problems.map(p=>`Problem: ${p}`));
+    if(data.commands?.length) lines.push('',...data.commands.map(c=>`Setup: ${c}`));
+    box.textContent=lines.join('\n');
+  } catch(err){ box.textContent=`Backend diagnostics unavailable: ${err.message}`; }
+}
+
+async function loadIndexManagement(){
+  const box=document.getElementById('settings-index-status');
+  if(!box) return;
+  try{
+    const status=await apiGet('/api/index-status',5000);
+    const lines=[
+      `State: ${status.active ? 'running' : (status.phase||'idle')}`,
+      `Folders: ${status.folders_completed||0}/${status.folders_total||0}`,
+      `Files completed: ${status.files_completed||0} · embedded/catalogued this run: ${status.files_processed||0}`,
+      `Chunks added: ${status.chunks_added||0} · failed: ${status.files_failed||0} · too large: ${status.files_too_large||0}`,
+    ];
+    if(status.current_file) lines.push(`Current: ${status.current_file}`);
+    if(status.failed_files?.length){
+      lines.push('', 'Recent failures:');
+      status.failed_files.slice(0,8).forEach(item=>lines.push(`• ${item.path} [${item.stage}]: ${item.error}`));
+    }
+    box.textContent=lines.join('\n');
+  } catch(err){ box.textContent=`Index status unavailable: ${err.message}`; }
+}
+
+async function cancelBackgroundIndexing(){
+  try{
+    const response=await fetch(API_BASE+'/api/index-cancel',{method:'POST'});
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.reason||data.error||'No indexing job is running.');
+    showToast(data.message||'Indexing cancellation requested.',false);
+    loadIndexManagement();
+  } catch(err){ showToast(err.message,true); }
+}
+
+async function rebuildIndex(){
+  if(!window.confirm('Rebuild the local search index? File metadata and embeddings will be regenerated; your files will not be changed.')) return;
+  try{
+    const response=await fetch(API_BASE+'/api/index/rebuild',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'rebuild-index'})});
+    const data=await response.json(); if(!response.ok) throw new Error(data.error||'Rebuild could not start.');
+    showToast('Index rebuild started in the background.',false); startBackgroundIndexPoll(); loadIndexManagement();
+  } catch(err){ showToast(err.message,true); }
+}
+
+async function clearLocalData(){
+  if(!window.confirm('Clear all GhostOS indexed files, embeddings, and timeline events stored locally? Your original files will not be deleted.')) return;
+  try{
+    const response=await fetch(API_BASE+'/api/data/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'clear-local-data'})});
+    const data=await response.json(); if(!response.ok) throw new Error(data.error||'Local data could not be cleared.');
+    await resetConversation();
+    await loadRealData(); renderAll(); loadIndexManagement();
+    showToast('GhostOS local index and timeline were cleared.',false);
+  } catch(err){ showToast(err.message,true); }
+}
+
+async function resetConversation(){
+  try{
+    const response=await fetch(API_BASE+'/api/chat/reset',{method:'POST'});
+    if(!response.ok) throw new Error(`Backend returned ${response.status}`);
+    document.getElementById('chat-messages').innerHTML=''; chatStarted=false;
+    document.getElementById('chat-messages').classList.add('hidden');
+    document.getElementById('assistant-intro').classList.remove('hidden');
+    document.getElementById('assistant-shortcuts').classList.remove('hidden');
+    pendingChatAttachment=null;
+    document.getElementById('chat-file-input').value='';
+    if(voiceRecognition){ voiceRecognition.stop(); voiceRecognition=null; }
+    showToast('Conversation memory reset.',false);
+  } catch(err){ showToast(`Could not reset conversation: ${err.message}`,true); }
+}
+
+async function promptOpenApplication(){
+  const appName=window.prompt('Open an allowed application (for example: notepad, calculator, vscode, chrome, edge):');
+  if(!appName) return;
+  try{
+    const response=await fetch(API_BASE+'/api/actions/execute',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'open_app',arguments:{app:appName}})});
+    const result=await response.json();
+    showToast(result.message||'Action finished.',!result.success);
+  } catch(err){ showToast(`Could not open application: ${err.message}`,true); }
+}
+
 const STANDARD_FOLDER_ICONS = {
   Desktop: 'monitor', Documents: 'file-text', Downloads: 'download',
   Pictures: 'image', Videos: 'video', Music: 'music',
@@ -1136,6 +1914,7 @@ function openConnectModal(){
   document.getElementById('connect-progress-step').classList.add('hidden');
   document.getElementById('connect-done-step').classList.add('hidden');
   document.getElementById('connect-done-step').classList.remove('flex');
+  document.getElementById('scan-drives-checkbox').checked=Boolean(currentSettings?.scan_entire_drives);
 
   const preview = document.getElementById('connect-folder-preview');
   preview.innerHTML = Object.keys(STANDARD_FOLDER_ICONS).map(name => `
@@ -1382,20 +2161,252 @@ function continueToDashboard(){
 let chatStarted = false;
 let pendingChatAttachment = null;
 let activeChatController = null;
-let voiceRecognition = null;
+let voiceRecognition = null; // holds the active MediaRecorder while recording
+let voiceStream = null;      // the mic MediaStream, closed as soon as we're done with it
+let voiceChunks = [];
+let voiceAutoStopTimer = null;
+let voiceSessionBaseText = '';
+let voiceSessionInterimText = '';
+let voiceSessionFinalText = '';
+let voiceSessionActive = false;
+let voiceSessionStopping = false;
+let voiceSessionRecognizer = null;
 
 function handleChatAttachment(file){ pendingChatAttachment=file||null; if(file) showToast(`Attached: ${file.name}`,false); }
-function toggleVoiceInput(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){ showToast('Voice input is not supported by this browser.',true); return; }
-  if(voiceRecognition){ voiceRecognition.stop(); return; }
-  voiceRecognition=new SR(); voiceRecognition.lang='en-IN'; voiceRecognition.interimResults=true;
-  voiceRecognition.onresult=e=>document.getElementById('chat-input').value=Array.from(e.results).map(r=>r[0].transcript).join('');
-  voiceRecognition.onend=()=>{voiceRecognition=null;document.getElementById('chat-mic-btn').style.color='var(--text-faint)';};
-  voiceRecognition.onerror=e=>showToast(`Microphone error: ${e.error}`,true);
-  document.getElementById('chat-mic-btn').style.color='var(--accent-2)'; voiceRecognition.start();
+
+function setMicRecordingState(recording){
+  const btn = document.getElementById('chat-mic-btn');
+  if(!btn) return;
+  btn.classList.toggle('mic-recording', recording);
+  btn.title = recording ? 'Stop recording' : 'Speak';
+}
+
+async function toggleVoiceInput(){
+  // Already recording -> stop() triggers the onstop handler below, which
+  // does the actual upload + transcription.
+  if(voiceRecognition && voiceRecognition.state === 'recording'){
+    voiceRecognition.stop();
+    return;
+  }
+
+  try{
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(err){
+    showToast('Microphone access was denied or unavailable.', true);
+    return;
+  }
+
+  const mimeCandidates = ['audio/webm', 'audio/ogg', 'audio/mp4'];
+  const mimeType = mimeCandidates.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+  voiceChunks = [];
+
+  let recorder;
+  try{
+    recorder = mimeType ? new MediaRecorder(voiceStream, { mimeType }) : new MediaRecorder(voiceStream);
+  } catch(err){
+    voiceStream.getTracks().forEach(t => t.stop());
+    voiceStream = null;
+    showToast('This browser cannot record audio locally.', true);
+    return;
+  }
+
+  recorder.ondataavailable = (e) => { if(e.data && e.data.size > 0) voiceChunks.push(e.data); };
+
+  recorder.onstop = async () => {
+    clearTimeout(voiceAutoStopTimer);
+    setMicRecordingState(false);
+    voiceStream.getTracks().forEach(t => t.stop());
+    voiceStream = null;
+
+    const blob = new Blob(voiceChunks, { type: recorder.mimeType || 'audio/webm' });
+    voiceChunks = [];
+    if(blob.size === 0){ voiceRecognition = null; return; }
+
+    const ext = (recorder.mimeType || '').includes('ogg') ? 'ogg' : (recorder.mimeType || '').includes('mp4') ? 'm4a' : 'webm';
+    const form = new FormData();
+    form.append('audio', blob, `recording.${ext}`);
+
+    const micBtn = document.getElementById('chat-mic-btn');
+    if(micBtn) micBtn.setAttribute('data-lucide', 'loader-circle');
+    if(micBtn) micBtn.classList.add('animate-spin');
+    lucide.createIcons();
+
+    try{
+      const response = await fetch(API_BASE + '/api/transcribe', { method: 'POST', body: form });
+      const data = await response.json().catch(() => ({}));
+      if(!response.ok){
+        showToast(data.error || `Transcription failed (${response.status})`, true);
+      } else if(data.text && data.text.trim()){
+        const input = document.getElementById('chat-input');
+        input.value = (input.value ? input.value.trim() + ' ' : '') + data.text.trim();
+        input.focus();
+      } else {
+        showToast('Could not make out any speech in that recording.', true);
+      }
+    } catch(err){
+      showToast(`Could not reach the backend for transcription: ${err.message}`, true);
+    } finally{
+      if(micBtn){ micBtn.setAttribute('data-lucide', 'mic'); micBtn.classList.remove('animate-spin'); }
+      lucide.createIcons();
+      voiceRecognition = null;
+    }
+  };
+
+  voiceRecognition = recorder;
+  setMicRecordingState(true);
+  showToast('Listening… tap the mic again to stop and transcribe.', false);
+  recorder.start();
+
+  // Safety net: if the user forgets to tap stop, don't record forever.
+  clearTimeout(voiceAutoStopTimer);
+  voiceAutoStopTimer = setTimeout(() => {
+    if(voiceRecognition && voiceRecognition.state === 'recording') voiceRecognition.stop();
+  }, 30000);
 }
 function stopChatGeneration(){ if(activeChatController) activeChatController.abort(); }
+
+function getSpeechRecognitionCtor(){
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function setMicRecordingState(recording){
+  const btn = document.getElementById('chat-mic-btn');
+  if(!btn) return;
+  btn.classList.toggle('mic-recording', recording);
+  btn.setAttribute('data-lucide', 'mic');
+  btn.title = recording ? 'Stop listening' : 'Speak';
+  lucide.createIcons();
+}
+
+function resetSpeechSessionState(){
+  voiceSessionActive = false;
+  voiceSessionStopping = false;
+  voiceSessionRecognizer = null;
+  voiceSessionInterimText = '';
+  voiceSessionFinalText = '';
+  voiceSessionBaseText = '';
+  clearTimeout(voiceAutoStopTimer);
+  voiceAutoStopTimer = null;
+  voiceRecognition = null;
+  setMicRecordingState(false);
+}
+
+function joinSpeechText(baseText, speechText){
+  const left = (baseText || '').trimEnd();
+  const right = (speechText || '').trim();
+  if(!left) return right;
+  if(!right) return left;
+  return `${left}${/\s$/.test(left) ? '' : ' '}${right}`;
+}
+
+function renderSpeechInputTranscript(){
+  const input = document.getElementById('chat-input');
+  if(!input) return;
+  const combinedSpeech = [voiceSessionFinalText, voiceSessionInterimText].filter(Boolean).join(' ').trim();
+  input.value = joinSpeechText(voiceSessionBaseText, combinedSpeech);
+  input.focus();
+}
+
+function stopVoiceRecognition(manual=true){
+  if(!voiceRecognition) return;
+  voiceSessionStopping = true;
+  try{
+    voiceRecognition.stop();
+  } catch(err){
+    try{ voiceRecognition.abort(); } catch(_){}
+  }
+  if(manual && !voiceSessionRecognizer){
+    resetSpeechSessionState();
+  }
+}
+
+function handleSpeechRecognitionError(error){
+  const code = String(error?.error || error?.name || 'error').toLowerCase();
+  if(code === 'not-allowed' || code === 'service-not-allowed'){
+    showToast('Microphone permission was denied.', true);
+  } else if(code === 'audio-capture'){
+    showToast('No microphone was available.', true);
+  } else if(code === 'network'){
+    showToast('Speech recognition could not reach its service.', true);
+  } else if(code === 'no-speech'){
+    showToast('No speech was detected.', true);
+  } else if(code !== 'aborted'){
+    showToast(`Speech recognition error: ${code}`, true);
+  }
+}
+
+function createSpeechRecognitionAdapter(){
+  const Ctor = getSpeechRecognitionCtor();
+  if(!Ctor) return null;
+  const recognition = new Ctor();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  return recognition;
+}
+
+async function toggleVoiceInput(){
+  if(voiceSessionActive){
+    stopVoiceRecognition(true);
+    return;
+  }
+
+  if(!getSpeechRecognitionCtor()){
+    showToast('This browser does not support live speech recognition.', true);
+    return;
+  }
+
+  try{
+    voiceRecognition = createSpeechRecognitionAdapter();
+    if(!voiceRecognition) throw new Error('speech recognition unavailable');
+    voiceSessionBaseText = document.getElementById('chat-input').value || '';
+    voiceSessionInterimText = '';
+    voiceSessionFinalText = '';
+    voiceSessionActive = true;
+    voiceSessionStopping = false;
+    setMicRecordingState(true);
+    showToast('Listening... tap the mic again to stop.', false);
+
+    voiceRecognition.onresult = (event) => {
+      let finalText = '';
+      let interimText = '';
+      for(let i = event.resultIndex; i < event.results.length; i += 1){
+        const result = event.results[i];
+        const transcript = (result[0] && result[0].transcript ? result[0].transcript : '').trim();
+        if(!transcript) continue;
+        if(result.isFinal) finalText += `${transcript} `;
+        else interimText += `${transcript} `;
+      }
+      if(finalText) voiceSessionFinalText = joinSpeechText(voiceSessionFinalText, finalText);
+      voiceSessionInterimText = interimText.trim();
+      renderSpeechInputTranscript();
+    };
+
+    voiceRecognition.onerror = (event) => {
+      handleSpeechRecognitionError(event);
+      stopVoiceRecognition(false);
+    };
+
+    voiceRecognition.onend = () => {
+      const hadSpeech = Boolean((voiceSessionFinalText || voiceSessionInterimText).trim());
+      const wasManualStop = voiceSessionStopping;
+      voiceSessionActive = false;
+      voiceSessionStopping = false;
+      setMicRecordingState(false);
+      if(!hadSpeech && !wasManualStop){
+        showToast('No speech was detected.', true);
+      }
+      voiceSessionRecognizer = null;
+      voiceRecognition = null;
+    };
+
+    voiceSessionRecognizer = voiceRecognition;
+    voiceRecognition.start();
+  } catch(err){
+    resetSpeechSessionState();
+    showToast('Could not start live speech recognition.', true);
+  }
+}
 
 function escapeHtml(str){
   const d = document.createElement('div');
@@ -1462,6 +2473,7 @@ function appendSourcesChip(sources){
     const fname = (s.path || '').split(/[\\/]/).pop() || s.path;
     chip.textContent = `📄 ${fname} · ${s.score != null ? s.score : 'name match'}`;
     chip.title = s.path;
+    if(s.path){ chip.style.cursor='pointer'; chip.onclick=()=>openTarget(s.path); }
     box.appendChild(chip);
   });
   wrap.appendChild(box);
@@ -1533,7 +2545,7 @@ async function sendChatMessage(presetText){
     }
   } catch(err){
     if(err.name === 'AbortError'){
-      if(!assistantBubble.textContent) assistantBubble.textContent = 'Stopped.';
+      assistantBubble.textContent = assistantBubble.textContent ? `${assistantBubble.textContent}\n\nStopped.` : 'Stopped.';
     } else {
       assistantBubble.parentElement.remove();
       appendChatMessage('error', `Couldn't reach the GhostOS backend at ${API_BASE}. Make sure the backend and Ollama are running.`);
@@ -1563,6 +2575,7 @@ function renderAll(){
   // loadRealData() refreshes the lists); otherwise default to the first item
   // so the detail panels are never empty.
   renderFileDetail(selectedFile || recentFiles[0] || null);
+  refreshFileListObserver();
   if(selectedTimelineIdx === null || !timelineEvents[selectedTimelineIdx]) selectedTimelineIdx = timelineEvents.length ? 0 : null;
   renderEventDetail(selectedTimelineIdx !== null ? timelineEvents[selectedTimelineIdx] : null);
 

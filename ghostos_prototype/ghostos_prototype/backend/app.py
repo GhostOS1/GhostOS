@@ -28,8 +28,7 @@ Requires Ollama running locally with:
   ollama pull gemma4:e2b
 """
 
-from flask import Flask, request, jsonify, Response
-from flask_cors import CORS
+from flask import Flask, request, jsonify, Response, send_file
 import json
 import os
 import queue
@@ -38,7 +37,7 @@ import random
 import tempfile
 import getpass
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 from werkzeug.utils import secure_filename
 from concurrent.futures import ThreadPoolExecutor
 
@@ -46,11 +45,17 @@ from embeddings import get_embedding
 from vectorstore import (
     init_db, get_stats, get_categories, get_collections,
     get_recent_files, get_storage_breakdown, get_timeline,
+    normalize_timeline_event_kind, TIMELINE_EVENT_KINDS,
     search_files_by_name, hybrid_search, rerank,
-    is_catalogued_path,
+    is_catalogued_path, clear_file_index, clear_all_local_data,
 )
-from indexer import extract_text
-from connect_system import connect_system, get_background_status
+from indexer import SUPPORTED_EXTENSIONS, extract_text, refresh_catalog_collections
+from ocr_service import IMAGE_EXTENSIONS
+from voice_service import AUDIO_EXTENSIONS, get_voice_status, transcribe_audio
+from connect_system import (
+    connect_system, get_background_status, cancel_background_indexing,
+    reset_background_status,
+)
 
 from router import (
     classify_intent, GREETING_REPLIES, THANKS_REPLIES, FAREWELL_REPLIES,
@@ -66,10 +71,50 @@ from memory_agent import (
 )
 from ai_agent import stream_reply
 from config import HOST, PORT, CHAT_MODEL, EMBED_MODEL, OLLAMA_BASE_URL
-import requests
+from diagnostics import get_diagnostics
+from timeline_sessions import group_events, summarize_day
+from settings_store import get_settings, update_settings
+from insights import build_insights, clear_insight_state, dismiss_insight
+from action_agent import execute_action
+from action_registry import list_actions
+from watcher import pause_collectors
+from browser_connector import reset_browser_sync_state
 
 app = Flask(__name__)
-CORS(app)  # allows the simple HTML frontend to call this API from a file:// or localhost origin
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+_lifecycle_lock = threading.Lock()
+
+_LOCAL_UI_ORIGINS = {
+    f"http://127.0.0.1:{PORT}",
+    f"http://localhost:{PORT}",
+    f"http://[::1]:{PORT}",
+}
+
+
+@app.before_request
+def reject_cross_site_mutations():
+    """Block websites from driving private local mutation/action endpoints."""
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return None
+    origin = (request.headers.get("Origin") or "").rstrip("/")
+    fetch_site = (request.headers.get("Sec-Fetch-Site") or "").casefold()
+    if fetch_site == "cross-site" or (origin and origin not in _LOCAL_UI_ORIGINS):
+        return jsonify({"error": "Cross-site requests are not allowed."}), 403
+    return None
+
+
+def execute_permitted_action(action: str, arguments: dict | None) -> dict:
+    """Apply the local settings allowlist before dispatching every action."""
+    if not get_settings()["action_permissions"].get(action, False):
+        message = "This action is disabled in GhostOS settings."
+        return {
+            "success": False,
+            "action": action,
+            "target": None,
+            "message": message,
+            "error": {"code": "permission_disabled", "message": message},
+        }
+    return execute_action(action, arguments)
 
 SYSTEM_PROMPT = """You are Ghost, the AI assistant inside GhostOS — a private,
 offline-first assistant that answers questions using the user's own indexed
@@ -101,16 +146,16 @@ First, decide what kind of message this is:
 Rules that always apply:
 - Only claim to have found something if it's actually present in the
   context below. Never fabricate filenames, dates, or content.
-- You can search and summarize the user's indexed files. You cannot open
-  apps, send emails, modify files, or take any action on the system —
-  if asked to do something outside searching/answering, say that's not
-  supported yet rather than pretending it happened.
+- Safe local actions are executed only by GhostOS's validated action layer
+  before model generation. You must never execute or invent commands, and
+  must never claim that a file, app, URL, or folder was opened unless an
+  explicit action result is supplied by the backend.
 - You have access to recent conversation turns and, when relevant, a
   "Conversation memory" context block that resolves pronouns like "it",
   "that", or "this" to whichever file/folder/page was most recently
   discussed. Use it to answer naturally (e.g. "That's report.pdf, in your
-  Documents folder"). The action limitation above still applies even when
-  the reference is known — you can say what "it" is, not open/move/delete it.
+  Documents folder"). Never infer that an action succeeded merely because
+  the reference is known.
 - Some context entries are live system stats (CPU/RAM/disk usage) rather
   than files — treat those as current readings to report, not files to
   reference or claim are "indexed."
@@ -138,36 +183,26 @@ Your first task is to determine whether the User Message requires the Indexed Co
 """
 
 init_db()
+refresh_catalog_collections()
+
+
+@app.route("/", methods=["GET"])
+def frontend_index():
+    """Serve the bundled frontend so API calls can use the configured origin."""
+    frontend_path = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
+    return send_file(frontend_path)
 
 
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    """Readiness snapshot used by the UI and installers."""
-    ollama = {"available": False, "chat_model": False, "embedding_model": False, "error": None}
-    try:
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3)
-        response.raise_for_status()
-        names = {m.get("name") for m in response.json().get("models", []) if m.get("name")}
+    """Detailed local readiness snapshot used by the UI and setup flow."""
+    report = get_diagnostics()
+    return jsonify(report), (200 if report["status"] == "ready" else 503)
 
-        def model_is_installed(configured_name: str) -> bool:
-            # Ollama may report an implicit latest tag explicitly:
-            # "nomic-embed-text" and "nomic-embed-text:latest" are the
-            # same model reference and should both satisfy readiness.
-            if configured_name in names:
-                return True
-            if ":" not in configured_name and f"{configured_name}:latest" in names:
-                return True
-            return False
 
-        ollama.update({
-            "available": True,
-            "chat_model": model_is_installed(CHAT_MODEL),
-            "embedding_model": model_is_installed(EMBED_MODEL),
-        })
-    except Exception as exc:
-        ollama["error"] = str(exc)
-    ready = ollama["available"] and ollama["chat_model"] and ollama["embedding_model"]
-    return jsonify({"status": "ready" if ready else "degraded", "ollama": ollama, "database": get_stats()}), (200 if ready else 503)
+@app.route("/api/diagnostics", methods=["GET"])
+def api_diagnostics():
+    return jsonify(get_diagnostics())
 
 
 @app.route("/api/connect-system", methods=["POST"])
@@ -196,7 +231,16 @@ def api_connect_system():
     closed. Poll GET /api/index-status to track that.
     """
     body = request.get_json(silent=True) or {}
-    scan_entire_drives = bool(body.get("scan_entire_drives", False))
+    settings = get_settings()
+    scan_entire_drives = bool(
+        body.get("scan_entire_drives", settings["scan_entire_drives"])
+    )
+
+    # Serialize connect/rebuild/clear transitions.  Acquiring before the
+    # worker starts closes the small window where a clear request could run
+    # after this route returned but before connect_system marked its job active.
+    if not _lifecycle_lock.acquire(blocking=False):
+        return jsonify({"error": "Another GhostOS lifecycle operation is already starting."}), 409
 
     progress_q: "queue.Queue" = queue.Queue()
 
@@ -205,14 +249,24 @@ def api_connect_system():
 
     def run():
         try:
-            result = connect_system(progress_callback=on_progress, scan_entire_drives=scan_entire_drives)
+            result = connect_system(
+                progress_callback=on_progress,
+                scan_entire_drives=scan_entire_drives,
+                additional_folders=settings["indexed_folders"],
+                excluded_folders=settings["excluded_folders"],
+            )
             progress_q.put({"type": "done", **result})
         except Exception as e:
             progress_q.put({"type": "error", "message": str(e)})
         finally:
             progress_q.put(None)  # sentinel: stream is finished
+            _lifecycle_lock.release()
 
-    threading.Thread(target=run, daemon=True).start()
+    try:
+        threading.Thread(target=run, daemon=True).start()
+    except Exception:
+        _lifecycle_lock.release()
+        raise
 
     def stream():
         while True:
@@ -244,6 +298,52 @@ def api_index_status():
     return jsonify(get_background_status())
 
 
+@app.route("/api/index-cancel", methods=["POST"])
+def api_index_cancel():
+    """Request graceful cancellation of the active background index job."""
+    result = cancel_background_indexing()
+    return jsonify(result), (202 if result.get("accepted") else 409)
+
+
+@app.route("/api/index/rebuild", methods=["POST"])
+def api_index_rebuild():
+    """Clear derived file/chunk data and start a fresh background index."""
+    body = request.get_json(silent=True) or {}
+    if body.get("confirm") != "rebuild-index":
+        return jsonify({"error": "Explicit rebuild confirmation is required."}), 400
+    with _lifecycle_lock:
+        if get_background_status().get("active"):
+            return jsonify({"error": "Cancel or wait for the current indexing job first."}), 409
+        pause_collectors()
+        reset_browser_sync_state()
+        removed = clear_file_index()
+        settings = get_settings()
+        result = connect_system(
+            scan_entire_drives=bool(settings["scan_entire_drives"]),
+            additional_folders=settings["indexed_folders"],
+            excluded_folders=settings["excluded_folders"],
+        )
+    return jsonify({"status": "rebuilding", "removed": removed, "connect": result}), 202
+
+
+@app.route("/api/data/clear", methods=["POST"])
+def api_clear_local_data():
+    """Clear user-derived GhostOS data after an explicit confirmation token."""
+    body = request.get_json(silent=True) or {}
+    if body.get("confirm") != "clear-local-data":
+        return jsonify({"error": "Explicit clear confirmation is required."}), 400
+    with _lifecycle_lock:
+        if get_background_status().get("active"):
+            return jsonify({"error": "Cancel or wait for indexing before clearing data."}), 409
+        pause_collectors()
+        removed = clear_all_local_data()
+        reset_background_status()
+        reset_browser_sync_state()
+        clear_insight_state()
+        reset_memory()
+    return jsonify({"status": "cleared", "removed": removed})
+
+
 @app.route("/api/stats", methods=["GET"])
 def api_stats():
     return jsonify(get_stats())
@@ -262,21 +362,69 @@ def api_profile():
     })
 
 
+@app.route("/api/settings", methods=["GET", "PUT"])
+def api_settings():
+    if request.method == "GET":
+        return jsonify({
+            "settings": get_settings(),
+            "privacy": "All indexed content, activity, settings, and AI processing stay on this device.",
+        })
+    try:
+        settings = update_settings(request.get_json(silent=True) or {})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"status": "saved", "settings": settings, "restart_required": True})
+
+
+@app.route("/api/insights", methods=["GET"])
+def api_insights():
+    return jsonify({"insights": build_insights()})
+
+
+@app.route("/api/insights/<insight_id>/dismiss", methods=["POST"])
+def api_dismiss_insight(insight_id: str):
+    if not insight_id.isalnum() or len(insight_id) > 64:
+        return jsonify({"error": "Invalid insight id"}), 400
+    dismiss_insight(insight_id)
+    return jsonify({"status": "dismissed", "id": insight_id})
+
+
 @app.route("/api/open", methods=["POST"])
 def api_open():
-    """Open a catalogued file/folder or a recorded HTTP(S) URL on Windows."""
+    """Backward-compatible safe open endpoint used by the existing UI."""
     target = str((request.get_json(silent=True) or {}).get("target", "")).strip()
     if not target:
         return jsonify({"error": "Missing target"}), 400
-    parsed = urlparse(target)
-    is_web = parsed.scheme in ("http", "https") and bool(parsed.netloc)
+    if target.lower().startswith("file://"):
+        parsed = urlparse(target)
+        if parsed.netloc not in {"", "localhost"}:
+            return jsonify({"error": "Remote file URLs are not allowed"}), 400
+        local_path = unquote(parsed.path)
+        if os.name == "nt" and len(local_path) >= 3 and local_path[0] == "/" and local_path[2] == ":":
+            local_path = local_path[1:]
+        target = str(Path(local_path.replace("/", os.sep)))
+    is_web = target.lower().startswith(("http://", "https://"))
     if not is_web and not is_catalogued_path(target):
         return jsonify({"error": "Only indexed files can be opened"}), 403
-    try:
-        os.startfile(target)  # Windows-only by design; GhostOS currently targets Windows.
-        return jsonify({"status": "opened", "target": target})
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+    action = "open_url" if is_web else ("open_folder" if Path(target).is_dir() else "open_file")
+    key = "url" if is_web else "path"
+    result = execute_permitted_action(action, {key: target})
+    status = 200 if result["success"] else (403 if result.get("error", {}).get("code") == "permission_disabled" else 400)
+    return jsonify(result), status
+
+
+@app.route("/api/actions", methods=["GET"])
+def api_actions():
+    return jsonify({"actions": list_actions(), "permissions": get_settings()["action_permissions"]})
+
+
+@app.route("/api/actions/execute", methods=["POST"])
+def api_execute_action():
+    body = request.get_json(silent=True) or {}
+    action = str(body.get("action", ""))
+    result = execute_permitted_action(action, body.get("arguments"))
+    status = 200 if result["success"] else (403 if result.get("error", {}).get("code") == "permission_disabled" else 400)
+    return jsonify(result), status
 
 
 @app.route("/api/categories", methods=["GET"])
@@ -297,9 +445,15 @@ def api_recent_files():
     powers the Categories / AI Collections tiles when clicked - pass
     ?category=<n> or ?collection=<n> to filter to just that bucket."""
     limit = request.args.get("limit", default=20, type=int)
+    offset = request.args.get("offset", default=0, type=int)
     category = request.args.get("category")
     collection = request.args.get("collection")
-    return jsonify(get_recent_files(limit=limit, category=category, collection=collection))
+    return jsonify(get_recent_files(
+        limit=min(max(limit, 1), 5000),
+        offset=max(offset, 0),
+        category=category,
+        collection=collection,
+    ))
 
 
 @app.route("/api/storage", methods=["GET"])
@@ -310,10 +464,37 @@ def api_storage():
 
 @app.route("/api/timeline", methods=["GET"])
 def api_timeline():
-    """Powers the Timeline screen. Optional ?date=YYYY-MM-DD, ?limit=N."""
+    """Timeline events with optional date, limit and source-category filters."""
     date = request.args.get("date")
     limit = request.args.get("limit", default=200, type=int)
-    return jsonify(get_timeline(date_prefix=date, limit=limit))
+    try:
+        event_kind = normalize_timeline_event_kind(
+            request.args.get("event_kind"), kind=request.args.get("kind")
+        )
+    except ValueError as exc:
+        return jsonify({
+            "error": str(exc),
+            "allowed_kinds": sorted(TIMELINE_EVENT_KINDS),
+        }), 400
+    return jsonify(get_timeline(
+        date_prefix=date,
+        limit=min(max(limit, 1), 5000),
+        event_kind=event_kind,
+    ))
+
+
+@app.route("/api/timeline/sessions", methods=["GET"])
+def api_timeline_sessions():
+    date = request.args.get("date")
+    limit = request.args.get("limit", default=1000, type=int)
+    return jsonify(group_events(get_timeline(date_prefix=date, limit=min(max(limit, 1), 5000))))
+
+
+@app.route("/api/timeline/summary", methods=["GET"])
+def api_timeline_summary():
+    date = request.args.get("date")
+    events = get_timeline(date_prefix=date, limit=5000)
+    return jsonify(summarize_day(events, date=date))
 
 
 @app.route("/api/search", methods=["GET"])
@@ -329,30 +510,66 @@ def api_search():
         so the search bar still works without Ollama - it just won't
         surface content matches.
     """
-    query = request.args.get("q", "").strip()
-    limit = request.args.get("limit", default=8, type=int)
+    query = request.args.get("q", "").strip()[:500]
+    limit = min(max(request.args.get("limit", default=8, type=int), 1), 100)
     if not query:
         return jsonify({"files": [], "content": []})
 
     file_matches = search_files_by_name(query, limit=limit)
 
-    content_matches = []
-    try:
-        query_embedding = get_embedding(query)
-        fused = hybrid_search(query_embedding, query, top_k=limit, pool_size=max(limit * 4, RETRIEVAL_POOL_SIZE))
-        reranked = rerank(query, fused, top_k=limit)
-        content_matches = [
-            {
-                "source_path": m["source_path"],
-                "snippet": m["content"][:220],
-                "score": round(m["score"], 3),
-            }
-            for m in reranked if m["score"] >= MIN_RERANK_SCORE
-        ]
-    except Exception as e:
-        print(f"[search] semantic search skipped (embedding failed): {e}")
+    content_matches = [
+        {
+            "source_path": match["source_path"],
+            "snippet": match["content"][:220],
+            "score": round(match["score"], 3),
+        }
+        for match in search_agent(query)[:limit]
+    ]
 
     return jsonify({"files": file_matches, "content": content_matches})
+
+
+@app.route("/api/transcribe", methods=["POST"])
+def api_transcribe():
+    """
+    Transcribes a short recorded audio clip fully locally (faster-whisper,
+    CPU, int8). Nothing is sent off-device. Mirrors the OCR feature: off by
+    default, requires voice_enabled=true in settings, and requires the
+    optional requirements-voice.txt package to actually be installed.
+    """
+    if not get_settings().get("voice_enabled"):
+        return jsonify({"error": "Voice input is turned off in Settings."}), 400
+
+    status = get_voice_status()
+    if not status["available"]:
+        return jsonify({
+            "error": (
+                "Local speech engine isn't installed. Run "
+                ".\\setup_backend.ps1 -WithVoice, then restart the backend."
+            )
+        }), 503
+
+    uploaded = request.files.get("audio")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"error": "No audio was uploaded."}), 400
+
+    suffix = Path(secure_filename(uploaded.filename)).suffix.lower() or ".webm"
+    if suffix not in AUDIO_EXTENSIONS:
+        return jsonify({"error": f"Unsupported audio format: {suffix}"}), 400
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        uploaded.save(tmp.name)
+        tmp_path = Path(tmp.name)
+    try:
+        if tmp_path.stat().st_size == 0:
+            return jsonify({"error": "Recording was empty."}), 400
+        text = transcribe_audio(tmp_path)
+    except Exception as exc:
+        return jsonify({"error": f"Transcription failed: {exc}"}), 500
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    return jsonify({"text": text})
 
 
 def instant_reply_stream(text: str):
@@ -377,17 +594,26 @@ def api_chat():
         uploaded = request.files.get("attachment")
         if uploaded and uploaded.filename:
             suffix = Path(secure_filename(uploaded.filename)).suffix.lower()
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                uploaded.save(tmp.name)
-                tmp_path = Path(tmp.name)
-            try:
-                text = extract_text(tmp_path)
-                if text.strip():
-                    attachment_context = f"[Attached file: {uploaded.filename}]\n{text[:20000]}"
-                else:
-                    attachment_context = f"[Attached file: {uploaded.filename}; text extraction is unavailable for this format]"
-            finally:
-                tmp_path.unlink(missing_ok=True)
+            allowed_extensions = set(SUPPORTED_EXTENSIONS)
+            if get_settings().get("ocr_enabled"):
+                allowed_extensions.update(IMAGE_EXTENSIONS)
+            if suffix not in allowed_extensions:
+                attachment_context = (
+                    f"[Attached file: {uploaded.filename}; this format is not supported for "
+                    "local text extraction. Audio/video transcription is not implemented.]"
+                )
+            else:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    uploaded.save(tmp.name)
+                    tmp_path = Path(tmp.name)
+                try:
+                    text = extract_text(tmp_path)
+                    if text.strip():
+                        attachment_context = f"[Attached file: {uploaded.filename}]\n{text[:20000]}"
+                    else:
+                        attachment_context = f"[Attached file: {uploaded.filename}; no local text could be extracted]"
+                finally:
+                    tmp_path.unlink(missing_ok=True)
     else:
         data = request.get_json(silent=True) or {}
         user_message = data.get("message", "").strip()
@@ -405,11 +631,30 @@ def api_chat():
     # so the stateful override happens here instead: a short pronoun-y
     # message gets rerouted to reference_query only if there's actually
     # something in session memory (Memory Agent) to resolve it against.
-    if intent in ("semantic_query", "general") and wants_reference_resolution(user_message) \
+    if intent in ("semantic_query", "general", "exact_file_query") and wants_reference_resolution(user_message) \
             and (session_snapshot["last_file"] or session_snapshot["last_folder"] or session_snapshot["last_browser_tab"]):
         intent = "reference_query"
 
     print(f"[intent] {user_message!r} -> {intent}")
+
+    # The model never executes actions. A narrow deterministic path handles
+    # reference actions such as "open it" using already-resolved local state.
+    normalized_message = user_message.casefold().strip(" .!?\t\r\n")
+    if intent == "reference_query" and normalized_message.startswith(("open ", "launch ", "show ")):
+        remembered_file = session_snapshot.get("last_file")
+        remembered_url = session_snapshot.get("last_browser_tab")
+        remembered_folder = session_snapshot.get("last_folder_path")
+        if remembered_file:
+            result = execute_permitted_action("open_file", {"path": remembered_file["path"]})
+        elif remembered_url:
+            result = execute_permitted_action("open_url", {"url": remembered_url["url"]})
+        elif remembered_folder and Path(remembered_folder).is_absolute():
+            result = execute_permitted_action("open_folder", {"path": remembered_folder})
+        else:
+            result = {"success": False, "message": "I don't have a specific file, folder, or page to open yet."}
+        reply = result["message"]
+        record_turn(user_message, reply)
+        return Response(instant_reply_stream(reply), mimetype="text/plain")
 
     # Fast path: greetings/thanks/farewells never touch embeddings or the
     # LLM - this is the #1 latency win, since previously every message
@@ -480,7 +725,7 @@ def api_chat():
         )
         context_blocks.append(
             f"[Files found directly in your {folder_name} folder - this is a "
-            f"complete structured listing, not a content search]\n{file_list}"
+            f"structured listing of up to 50 recently modified matches, not a content search]\n{file_list}"
         )
         for f in folder_matches:
             sources.append({"path": f["path"], "score": None})
@@ -555,10 +800,7 @@ def api_chat():
 
 @app.route("/api/chat/reset", methods=["POST"])
 def api_chat_reset():
-    """Clears conversation history and session memory (Memory Agent) -
-    the backend equivalent of starting a new chat. Not wired to a
-    frontend button yet, but useful for testing and for a future 'New
-    Chat' action."""
+    """Clear conversation history/session memory for the UI's New Chat action."""
     reset_memory()
     return jsonify({"status": "reset"})
 

@@ -1,0 +1,5 @@
+# Optional, fully local OCR support. The Tesseract Windows executable is
+# installed separately and is never downloaded automatically by GhostOS.
+pytesseract==0.3.13
+Pillow>=10.4,<13
+PyMuPDF>=1.24,<2

@@ -57,10 +57,12 @@ import os
 import json
 import platform
 import threading
+from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
 
-from indexer import index_folders
+from config import INDEX_FAILED_FILES_LIMIT
+from indexer import FileProcessResult, index_folders
 from watcher import watch_folders
 
 # Whole-drive scanning (entire C:\, D:\, external drives) is intentionally
@@ -266,7 +268,11 @@ def discover_vscode_projects() -> list[Path]:
     return unique
 
 
-def discover_git_repositories(search_roots: list[Path], max_depth: int = GIT_SEARCH_MAX_DEPTH) -> list[Path]:
+def discover_git_repositories(
+    search_roots: list[Path],
+    max_depth: int = GIT_SEARCH_MAX_DEPTH,
+    excluded_folders: list[str | Path] | None = None,
+) -> list[Path]:
     """
     Finds Git repositories with a *bounded* walk from search_roots (not a
     whole-drive scan). A folder counts as a repo if it directly contains a
@@ -280,11 +286,14 @@ def discover_git_repositories(search_roots: list[Path], max_depth: int = GIT_SEA
         if candidate.exists() and candidate.is_dir():
             roots.append(candidate)
 
+    configured_exclusions = [Path(path) for path in (excluded_folders or [])]
     repos: list[Path] = []
     seen = set()
 
     def walk(path: Path, depth: int):
         if depth > max_depth:
+            return
+        if _is_within_any(path, configured_exclusions):
             return
         try:
             if (path / ".git").exists():
@@ -373,6 +382,38 @@ def is_excluded_dir_for_drive_scan(path: Path) -> bool:
     return name in EXCLUDED_DIR_NAMES or name in DRIVE_SCAN_EXTRA_EXCLUDED_DIR_NAMES
 
 
+def _resolved_existing_folders(paths: list[str] | None) -> list[Path]:
+    """Return unique, existing configured folders without inventing paths."""
+    folders: list[Path] = []
+    seen: set[str] = set()
+    for raw_path in paths or []:
+        try:
+            folder = Path(raw_path).expanduser().resolve(strict=True)
+        except (OSError, RuntimeError):
+            continue
+        if not folder.is_dir():
+            continue
+        key = str(folder).casefold()
+        if key not in seen:
+            seen.add(key)
+            folders.append(folder)
+    return folders
+
+
+def _is_within_any(path: Path, roots: list[Path]) -> bool:
+    try:
+        resolved = path.resolve(strict=False)
+    except (OSError, RuntimeError):
+        return True
+    for root in roots:
+        try:
+            resolved.relative_to(root)
+            return True
+        except ValueError:
+            continue
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Background indexing job (Phase 2)
 # ---------------------------------------------------------------------------
@@ -390,21 +431,37 @@ def is_excluded_dir_for_drive_scan(path: Path) -> bool:
 # background thread writes to it while a Flask request thread may read it
 # concurrently.
 _bg_lock = threading.Lock()
-_bg_state: dict = {
-    "active": False,       # a background job is currently running
-    "done": True,          # the most recent background job has finished (or none has run yet)
-    "phase": "idle",       # idle | discovering_vscode_projects | discovering_git_repos | discovering_drives | indexing | finished | error
-    "current_folder": None,
-    "folders_total": 0,
-    "folders_completed": 0,
-    "files_processed": 0,
-    "chunks_added": 0,
-    "vscode_projects_found": 0,
-    "git_repos_found": 0,
-    "drive_folders_found": 0,
-    "error": None,
-    "stats": {},
-}
+_bg_cancel_event = threading.Event()
+def _idle_background_state() -> dict:
+    return {
+        "active": False,       # a background job is currently running
+        "done": True,          # the most recent background job has finished (or none has run yet)
+        "phase": "idle",       # idle | discovering_vscode_projects | discovering_git_repos | discovering_drives | indexing | finished | error
+        "current_folder": None,
+        "current_file": None,
+        "folders_total": 0,
+        "folders_completed": 0,
+        "files_processed": 0,
+        "files_seen": 0,
+        "files_completed": 0,
+        "files_failed": 0,
+        "files_skipped": 0,
+        "files_too_large": 0,
+        "chunks_added": 0,
+        "vscode_projects_found": 0,
+        "git_repos_found": 0,
+        "drive_folders_found": 0,
+        "error": None,
+        "failed_files": [],
+        "cancel_requested": False,
+        "cancelled": False,
+        "started_at": None,
+        "finished_at": None,
+        "stats": {},
+    }
+
+
+_bg_state: dict = _idle_background_state()
 
 
 def get_background_status() -> dict:
@@ -412,7 +469,36 @@ def get_background_status() -> dict:
     call from any thread/request; returns a copy so callers can't mutate
     the shared state."""
     with _bg_lock:
-        return dict(_bg_state)
+        snapshot = dict(_bg_state)
+        snapshot["failed_files"] = list(_bg_state.get("failed_files", []))
+        return snapshot
+
+
+def reset_background_status() -> bool:
+    """Return an inactive job to its honest initial state after data clear.
+
+    Refuse to reset while work is active so a clear/status request can never
+    hide or detach a running indexing thread from its cancellation/progress
+    state.
+    """
+    with _bg_lock:
+        if _bg_state.get("active"):
+            return False
+        _bg_cancel_event.clear()
+        _bg_state.clear()
+        _bg_state.update(_idle_background_state())
+        return True
+
+
+def cancel_background_indexing() -> dict:
+    """Request graceful cancellation; an in-flight Ollama call may finish first."""
+    with _bg_lock:
+        if not _bg_state["active"]:
+            return {"accepted": False, "reason": "No indexing job is running."}
+        _bg_cancel_event.set()
+        _bg_state["cancel_requested"] = True
+        _bg_state["phase"] = "cancelling"
+    return {"accepted": True, "message": "Indexing cancellation requested."}
 
 
 def _dedupe_folders(folders: list[Path]) -> list[Path]:
@@ -430,6 +516,7 @@ def _run_background_discovery_and_indexing(
     standard_folders: list[Path],
     include_dev_folders: bool,
     scan_entire_drives: bool,
+    excluded_folders: list[Path] | None = None,
 ) -> None:
     """
     The actual heavy lifting, run entirely off the request thread: VS
@@ -440,8 +527,10 @@ def _run_background_discovery_and_indexing(
     and to the search index on top of that.
     """
     try:
+        excluded_folders = excluded_folders or []
+
         dev_folders: list[Path] = []
-        if include_dev_folders:
+        if include_dev_folders and not _bg_cancel_event.is_set():
             with _bg_lock:
                 _bg_state["phase"] = "discovering_vscode_projects"
             vscode_projects = discover_vscode_projects()
@@ -449,20 +538,36 @@ def _run_background_discovery_and_indexing(
                 _bg_state["vscode_projects_found"] = len(vscode_projects)
             dev_folders.extend(vscode_projects)
 
-            with _bg_lock:
-                _bg_state["phase"] = "discovering_git_repos"
-            git_repos = discover_git_repositories(standard_folders + vscode_projects)
-            with _bg_lock:
-                _bg_state["git_repos_found"] = len(git_repos)
-            dev_folders.extend(git_repos)
+            if not _bg_cancel_event.is_set():
+                with _bg_lock:
+                    _bg_state["phase"] = "discovering_git_repos"
+                git_repos = discover_git_repositories(
+                    standard_folders + vscode_projects,
+                    excluded_folders=excluded_folders,
+                )
+                with _bg_lock:
+                    _bg_state["git_repos_found"] = len(git_repos)
+                dev_folders.extend(git_repos)
 
-        all_folders = _dedupe_folders(standard_folders + dev_folders)
+        # Discovery can return a root that is itself inside a configured
+        # exclusion.  Directory-pruning callbacks only see descendants, so
+        # reject excluded roots before either the watcher or indexer receives
+        # them.
+        all_folders = [
+            folder
+            for folder in _dedupe_folders(standard_folders + dev_folders)
+            if not _is_within_any(folder, excluded_folders)
+        ]
 
         drive_folders: list[Path] = []
-        if scan_entire_drives:
+        if scan_entire_drives and not _bg_cancel_event.is_set():
             with _bg_lock:
                 _bg_state["phase"] = "discovering_drives"
-            drive_folders = discover_drives()
+            drive_folders = [
+                folder
+                for folder in discover_drives()
+                if not _is_within_any(folder, excluded_folders)
+            ]
             with _bg_lock:
                 _bg_state["drive_folders_found"] = len(drive_folders)
             all_folders = _dedupe_folders(all_folders + drive_folders)
@@ -484,37 +589,83 @@ def _run_background_discovery_and_indexing(
         def on_folder_done(folder: Path, result: dict):
             with _bg_lock:
                 _bg_state["folders_completed"] += 1
-                _bg_state["files_processed"] += result["files_processed"]
-                _bg_state["chunks_added"] += result["chunks_added"]
+
+        def on_file_start(path: Path):
+            with _bg_lock:
+                _bg_state["files_seen"] += 1
+                _bg_state["current_file"] = str(path)
+
+        def on_file_done(path: Path, result: dict):
+            status = result["status"]
+            with _bg_lock:
+                _bg_state["files_completed"] += 1
+                _bg_state["chunks_added"] += result.get("chunks_added", 0)
+                if status in {
+                    FileProcessResult.PROCESSED,
+                    FileProcessResult.UNSUPPORTED,
+                    FileProcessResult.EMPTY,
+                    FileProcessResult.TOO_LARGE,
+                }:
+                    _bg_state["files_processed"] += 1
+                if status == FileProcessResult.TOO_LARGE:
+                    _bg_state["files_too_large"] += 1
+                if status == FileProcessResult.FAILED:
+                    _bg_state["files_failed"] += 1
+                    if len(_bg_state["failed_files"]) < INDEX_FAILED_FILES_LIMIT:
+                        _bg_state["failed_files"].append({
+                            "path": str(path),
+                            "stage": result.get("stage") or "unknown",
+                            "error": result.get("error") or "Unknown indexing error",
+                        })
+                if status in {
+                    FileProcessResult.SENSITIVE,
+                    FileProcessResult.ALREADY_INDEXED,
+                    FileProcessResult.DUPLICATE_CONTENT,
+                    FileProcessResult.NOT_FOUND,
+                }:
+                    _bg_state["files_skipped"] += 1
 
         # Whole-drive folders need the stricter exclusion filter;
         # standard/dev folders use the normal one - same two-pass split as
         # before, just running in the background now instead of blocking
         # the original caller.
+        def configured_exclusion(path: Path) -> bool:
+            return is_excluded_dir(path) or _is_within_any(path, excluded_folders)
+
+        def configured_drive_exclusion(path: Path) -> bool:
+            return is_excluded_dir_for_drive_scan(path) or _is_within_any(path, excluded_folders)
+
         summary = index_folders(
             [str(f) for f in all_folders if f not in drive_folders],
-            is_excluded_dir=is_excluded_dir,
+            is_excluded_dir=configured_exclusion,
             on_folder_start=on_folder_start,
             on_folder_done=on_folder_done,
+            on_file_start=on_file_start,
+            on_file_done=on_file_done,
+            cancel_event=_bg_cancel_event,
         )
 
-        if drive_folders:
+        if drive_folders and not _bg_cancel_event.is_set():
             drive_summary = index_folders(
                 [str(f) for f in drive_folders],
-                is_excluded_dir=is_excluded_dir_for_drive_scan,
+                is_excluded_dir=configured_drive_exclusion,
                 on_folder_start=on_folder_start,
                 on_folder_done=on_folder_done,
+                on_file_start=on_file_start,
+                on_file_done=on_file_done,
+                cancel_event=_bg_cancel_event,
             )
-            with _bg_lock:
-                _bg_state["files_processed"] += drive_summary["files_processed"]
-                _bg_state["chunks_added"] += drive_summary["chunks_added"]
             summary["stats"] = drive_summary["stats"]
 
         with _bg_lock:
-            _bg_state["phase"] = "finished"
+            was_cancelled = _bg_cancel_event.is_set() or summary.get("cancelled", False)
+            _bg_state["phase"] = "cancelled" if was_cancelled else "finished"
             _bg_state["done"] = True
             _bg_state["active"] = False
             _bg_state["current_folder"] = None
+            _bg_state["current_file"] = None
+            _bg_state["cancelled"] = was_cancelled
+            _bg_state["finished_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
             _bg_state["stats"] = summary.get("stats", {})
 
     except Exception as e:
@@ -524,12 +675,16 @@ def _run_background_discovery_and_indexing(
             _bg_state["phase"] = "error"
             _bg_state["done"] = True
             _bg_state["active"] = False
+            _bg_state["current_file"] = None
+            _bg_state["finished_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def connect_system(
     progress_callback: Optional[Callable[[dict], None]] = None,
     include_dev_folders: bool = True,
     scan_entire_drives: bool = False,
+    additional_folders: list[str] | None = None,
+    excluded_folders: list[str] | None = None,
 ) -> dict:
     """
     The "Connect to System" flow, split into two phases so the user isn't
@@ -566,7 +721,14 @@ def connect_system(
     os_name = detect_os()
     emit("progress", message=f"Detected OS: {os_name}")
 
-    standard_folders = discover_standard_folders()
+    configured_exclusions = _resolved_existing_folders(excluded_folders)
+    discovered = discover_standard_folders()
+    configured = _resolved_existing_folders(additional_folders)
+    standard_folders = _dedupe_folders(discovered + configured)
+    standard_folders = [
+        folder for folder in standard_folders
+        if not _is_within_any(folder, configured_exclusions)
+    ]
     if not standard_folders and not scan_entire_drives:
         emit("progress", message="No standard folders found on this system.")
         return {"status": "no_folders", "folders": 0, "files": 0}
@@ -586,12 +748,19 @@ def connect_system(
     with _bg_lock:
         already_running = _bg_state["active"]
         if not already_running:
+            _bg_cancel_event.clear()
             _bg_state.update({
                 "active": True, "done": False, "phase": "starting",
-                "current_folder": None, "folders_total": len(standard_folders),
-                "folders_completed": 0, "files_processed": 0, "chunks_added": 0,
+                "current_folder": None, "current_file": None,
+                "folders_total": len(standard_folders), "folders_completed": 0,
+                "files_processed": 0, "files_seen": 0, "files_completed": 0,
+                "files_failed": 0, "files_skipped": 0, "files_too_large": 0,
+                "chunks_added": 0,
                 "vscode_projects_found": 0, "git_repos_found": 0,
-                "drive_folders_found": 0, "error": None, "stats": {},
+                "drive_folders_found": 0, "error": None, "failed_files": [],
+                "cancel_requested": False, "cancelled": False,
+                "started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "finished_at": None, "stats": {},
             })
 
     if already_running:
@@ -599,7 +768,10 @@ def connect_system(
     else:
         threading.Thread(
             target=_run_background_discovery_and_indexing,
-            args=(standard_folders, include_dev_folders, scan_entire_drives),
+            args=(
+                standard_folders, include_dev_folders, scan_entire_drives,
+                configured_exclusions,
+            ),
             daemon=True,
         ).start()
         emit("progress", message="Indexing continues in the background.")

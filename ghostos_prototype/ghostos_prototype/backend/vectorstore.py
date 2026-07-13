@@ -18,6 +18,31 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "ghostos_memory.db"
 
+TIMELINE_EVENT_KINDS = frozenset({"all", "apps", "documents", "web", "system"})
+
+
+def normalize_timeline_event_kind(
+    event_kind: str | None = None, *, kind: str | None = None,
+) -> str:
+    """Validate and normalize either public name for a Timeline category.
+
+    Keeping this at the storage boundary means callers other than Flask cannot
+    accidentally turn an arbitrary string into a SQL fragment.  When both
+    aliases are supplied, they must describe the same category.
+    """
+    normalized: list[str] = []
+    for value in (event_kind, kind):
+        if value is None:
+            continue
+        candidate = str(value).strip().casefold()
+        if candidate not in TIMELINE_EVENT_KINDS:
+            allowed = ", ".join(sorted(TIMELINE_EVENT_KINDS))
+            raise ValueError(f"Unknown Timeline kind {value!r}; expected one of: {allowed}")
+        normalized.append(candidate)
+    if len(set(normalized)) > 1:
+        raise ValueError("Timeline query parameters 'kind' and 'event_kind' conflict")
+    return normalized[0] if normalized else "all"
+
 
 def _connect():
     """SQLite connection tuned for concurrent Flask, watcher and indexer use."""
@@ -62,6 +87,23 @@ def init_db():
             embedded INTEGER DEFAULT 0
         )
     """)
+    # Additive migrations keep existing user databases usable. Nanosecond
+    # mtimes make unchanged-file checks cheap and reliable, while status/error
+    # fields let the indexer report partial failures without a separate log DB.
+    file_columns = {row[1] for row in conn.execute("PRAGMA table_info(files)")}
+    for column, definition in {
+        "mtime_ns": "INTEGER",
+        "index_status": "TEXT DEFAULT 'catalogued'",
+        "index_error": "TEXT",
+        "chunks_count": "INTEGER DEFAULT 0",
+        # Null on legacy/catalog-only rows. For embedded rows this records
+        # which local model produced the vectors, allowing unchanged files
+        # to be refreshed after a configured embedding-model change.
+        "embedding_model": "TEXT",
+    }.items():
+        if column not in file_columns:
+            conn.execute(f"ALTER TABLE files ADD COLUMN {column} {definition}")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_files_path ON files(path)")
 
     # A flat activity log - the source of truth for the Timeline screen.
     # Populated by the indexer (file events) and the browser connector
@@ -83,16 +125,25 @@ def init_db():
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)
     """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_events_type_timestamp
+        ON events(event_type, timestamp)
+    """)
+    event_columns = {row[1] for row in conn.execute("PRAGMA table_info(events)")}
+    if "event_key" not in event_columns:
+        conn.execute("ALTER TABLE events ADD COLUMN event_key TEXT")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_events_event_key ON events(event_key) WHERE event_key IS NOT NULL"
+    )
     conn.commit()
     conn.close()
 
 
 def remove_source(path: str):
-    """Remove stale index, metadata and timeline entries after deletion/rename."""
+    """Remove stale searchable state while preserving historical Timeline memory."""
     conn = _connect()
     conn.execute("DELETE FROM chunks WHERE source_path = ?", (path,))
     conn.execute("DELETE FROM files WHERE path = ?", (path,))
-    conn.execute("DELETE FROM events WHERE path_or_url = ? AND event_type = 'file_indexed'", (path,))
     conn.commit()
     conn.close()
 
@@ -113,6 +164,150 @@ def add_chunk(source_path: str, source_type: str, content: str, embedding: list[
     )
     conn.commit()
     conn.close()
+
+
+def upsert_browser_record(
+    *, search_hash: str, event_key: str, source_path: str, source_type: str,
+    content: str, embedding: list[float] | None, event: dict | None,
+) -> dict[str, bool]:
+    """Atomically store one page-level search chunk and one concrete visit."""
+    conn = _connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        chunk_exists = conn.execute(
+            "SELECT 1 FROM chunks WHERE file_hash = ? LIMIT 1", (search_hash,)
+        ).fetchone() is not None
+        chunk_added = False
+        if not chunk_exists and embedding:
+            # Browser search hashes include the embedding-model identity.
+            # Once a replacement vector is ready, discard only the older
+            # vector for this exact browser page/type so model switches do
+            # not leave duplicate search results behind.
+            if source_type.startswith("browser_history_"):
+                conn.execute(
+                    """DELETE FROM chunks
+                       WHERE source_path = ? AND source_type = ? AND file_hash <> ?""",
+                    (source_path, source_type, search_hash),
+                )
+            conn.execute(
+                """INSERT INTO chunks
+                       (source_path, source_type, content, embedding, file_hash)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (source_path, source_type, content, json.dumps(embedding), search_hash),
+            )
+            chunk_added = True
+
+        event_added = False
+        if event:
+            before = conn.total_changes
+            conn.execute(
+                """INSERT OR IGNORE INTO events
+                       (event_type, title, subtitle, app_label, badge_type,
+                        path_or_url, timestamp, event_key)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    event.get("event_type"), event.get("title"), event.get("subtitle"),
+                    event.get("app_label"), event.get("badge_type"),
+                    event.get("path_or_url"), event.get("timestamp"), event_key,
+                ),
+            )
+            event_added = conn.total_changes > before
+        conn.commit()
+        return {"chunk_added": chunk_added, "event_added": event_added}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_file_index_state(path: str) -> dict | None:
+    """Return the lightweight state needed for an unchanged-file fast path."""
+    conn = _connect()
+    row = conn.execute(
+        """SELECT file_hash, size_bytes, modified_at, mtime_ns, embedded,
+                  index_status, index_error, chunks_count, embedding_model
+           FROM files WHERE path = ? ORDER BY indexed_at DESC LIMIT 1""",
+        (path,),
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return None
+    return {
+        "file_hash": row[0], "size_bytes": row[1], "modified_at": row[2],
+        "mtime_ns": row[3], "embedded": bool(row[4]),
+        "index_status": row[5], "index_error": row[6], "chunks_count": row[7] or 0,
+        "embedding_model": row[8],
+    }
+
+
+def get_catalogued_path_for_hash(file_hash: str) -> str | None:
+    """Find the first catalogued source for duplicate-content detection."""
+    conn = _connect()
+    row = conn.execute(
+        "SELECT path FROM files WHERE file_hash = ? LIMIT 1", (file_hash,)
+    ).fetchone()
+    conn.close()
+    return row[0] if row else None
+
+
+def replace_file_index(
+    *, file_hash: str, path: str, name: str, extension: str, category: str,
+    collection: str, size_bytes: int, modified_at: str, mtime_ns: int,
+    embedded_chunks: list[tuple[str, list[float]]], index_status: str,
+    index_error: str | None = None,
+    source_type: str | None = None,
+    embedding_model: str | None = None,
+) -> str | None:
+    """Atomically replace one path's metadata and chunks.
+
+    Returns the existing path when the same content hash is already owned by
+    another file. No partial chunks are exposed if embedding or a DB write
+    fails midway.
+    """
+    conn = _connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        duplicate = conn.execute(
+            "SELECT path FROM files WHERE file_hash = ? AND path <> ? LIMIT 1",
+            (file_hash, path),
+        ).fetchone()
+        if duplicate:
+            conn.rollback()
+            return duplicate[0]
+
+        conn.execute("DELETE FROM chunks WHERE source_path = ?", (path,))
+        conn.execute("DELETE FROM files WHERE path = ?", (path,))
+        conn.execute(
+            """INSERT INTO files (
+                   file_hash, path, name, extension, category, collection,
+                   size_bytes, modified_at, embedded, mtime_ns, index_status,
+                   index_error, chunks_count, embedding_model
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                file_hash, path, name, extension, category, collection,
+                size_bytes, modified_at, int(bool(embedded_chunks)), mtime_ns,
+                index_status, index_error, len(embedded_chunks),
+                embedding_model if embedded_chunks else None,
+            ),
+        )
+        if embedded_chunks:
+            conn.executemany(
+                """INSERT INTO chunks
+                       (source_path, source_type, content, embedding, file_hash)
+                   VALUES (?, ?, ?, ?, ?)""",
+                [
+                    (path, source_type or extension, content, json.dumps(embedding), file_hash)
+                    for content, embedding in embedded_chunks
+                ],
+            )
+        conn.commit()
+        return None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def _cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
@@ -172,7 +367,10 @@ _STOPWORDS = {
 
 
 def _tokenize(text: str) -> list[str]:
-    tokens = re.findall(r"[a-z0-9]+", (text or "").lower())
+    # ``[^\W_]`` is the Unicode-aware equivalent of letters/digits.  It
+    # keeps search case-insensitive while no longer discarding non-English
+    # filenames or document text.
+    tokens = re.findall(r"[^\W_]+", (text or "").casefold(), flags=re.UNICODE)
     return [t for t in tokens if len(t) > 1 and t not in _STOPWORDS]
 
 
@@ -245,7 +443,9 @@ def hybrid_search(query_embedding: list[float], query_text: str, top_k: int = 5,
     keyword_results = bm25_search(query_text, top_k=pool_size)
 
     def _key(r):
-        return (r["source_path"], r["content"][:200])
+        source = str(r.get("source_path") or "").replace("/", "\\").casefold()
+        content = re.sub(r"\s+", " ", str(r.get("content") or "")).strip().casefold()
+        return (source, content)
 
     rrf_scores: dict = {}
     combined: dict = {}
@@ -288,13 +488,11 @@ def rerank(query_text: str, candidates: list[dict], top_k: int = 5) -> list[dict
     because embedding similarity nudges toward the broader topical match
     rather than the specific document).
 
-    Combines three normalized (0-1) signals:
-      - fused_score from hybrid_search (RRF rank across both retrievers)
-      - content term overlap (do the query's actual words appear in the
-        text, not just something embedding-adjacent to them)
-      - filename term overlap, weighted heaviest - the query's words
-        showing up in the filename itself is a strong, cheap relevance
-        signal a pure content search underweights.
+    Combines calibrated vector, BM25, content, filename and phrase signals.
+    RRF rank is intentionally a small tie-breaker: the old implementation
+    normalized the first candidate's RRF score to 1.0, which gave every
+    query a result above the relevance threshold even when that result had
+    zero lexical or semantic evidence.
 
     Sets "score" on each result (matching the field name the rest of the
     app already expects from search()), plus "rerank_score" for clarity.
@@ -304,9 +502,17 @@ def rerank(query_text: str, candidates: list[dict], top_k: int = 5) -> list[dict
 
     query_tokens = set(_tokenize(query_text))
     if not query_tokens:
-        return candidates[:top_k]
+        empty_scored = []
+        for candidate in candidates[:top_k]:
+            entry = dict(candidate)
+            entry["score"] = 0.0
+            entry["rerank_score"] = 0.0
+            entry["matched_terms"] = []
+            empty_scored.append(entry)
+        return empty_scored
 
     max_fused = max((c.get("fused_score", 0.0) for c in candidates), default=0.0)
+    query_phrase = " ".join(_tokenize(query_text))
 
     rescored = []
     for c in candidates:
@@ -314,14 +520,43 @@ def rerank(query_text: str, candidates: list[dict], top_k: int = 5) -> list[dict
         filename = Path(c.get("source_path", "") or "").name
         filename_tokens = set(_tokenize(filename))
 
-        content_overlap = len(query_tokens & content_tokens) / len(query_tokens)
-        filename_overlap = len(query_tokens & filename_tokens) / len(query_tokens)
-        norm_fused = (c.get("fused_score", 0.0) / max_fused) if max_fused > 0 else 0.0
+        matched_content = query_tokens & content_tokens
+        matched_filename = query_tokens & filename_tokens
+        content_overlap = len(matched_content) / len(query_tokens)
+        filename_overlap = len(matched_filename) / len(query_tokens)
 
-        final_score = 0.5 * norm_fused + 0.2 * content_overlap + 0.3 * filename_overlap
+        raw_vector = float(c.get("vector_score", c.get("score", 0.0)) or 0.0)
+        # Nomic cosine scores below ~0.20 carry little evidence.  A score of
+        # ~0.50 is just strong enough to pass without lexical overlap, while
+        # high-confidence semantic matches scale smoothly toward 1.
+        vector_relevance = min(1.0, max(0.0, (raw_vector - 0.20) / 0.65))
+        raw_bm25 = max(0.0, float(c.get("bm25_score", 0.0) or 0.0))
+        bm25_relevance = 1.0 - math.exp(-raw_bm25 / 3.0)
+        rank_signal = (float(c.get("fused_score", 0.0)) / max_fused) if max_fused > 0 else 0.0
+
+        filename_phrase = " ".join(_tokenize(filename))
+        filename_fuzzy = SequenceMatcher(None, query_phrase, filename_phrase).ratio() if filename_phrase else 0.0
+        normalized_content = " ".join(_tokenize(c.get("content", "")))
+        phrase_bonus = 0.0
+        if query_phrase and query_phrase in filename_phrase:
+            phrase_bonus += 0.06
+        if query_phrase and query_phrase in normalized_content:
+            phrase_bonus += 0.04
+
+        final_score = (
+            0.44 * vector_relevance
+            + 0.24 * content_overlap
+            + 0.16 * filename_overlap
+            + 0.10 * bm25_relevance
+            + 0.02 * filename_fuzzy
+            + 0.04 * rank_signal
+            + phrase_bonus
+        )
+        final_score = min(1.0, max(0.0, final_score))
         entry = dict(c)
         entry["score"] = final_score
         entry["rerank_score"] = final_score
+        entry["matched_terms"] = sorted(matched_content | matched_filename)
         rescored.append(entry)
 
     rescored.sort(key=lambda x: x["score"], reverse=True)
@@ -332,13 +567,20 @@ def get_stats() -> dict:
     conn = sqlite3.connect(DB_PATH)
     cur = conn.execute("SELECT COUNT(*) FROM chunks")
     total_chunks = cur.fetchone()[0]
-    cur = conn.execute("SELECT COUNT(*), COALESCE(SUM(size_bytes), 0) FROM files")
-    total_files, total_bytes = cur.fetchone()
+    cur = conn.execute(
+        """SELECT COUNT(*), COALESCE(SUM(size_bytes), 0),
+                  COALESCE(SUM(CASE WHEN embedded = 1 THEN 1 ELSE 0 END), 0),
+                  COALESCE(SUM(CASE WHEN index_status = 'failed' THEN 1 ELSE 0 END), 0)
+           FROM files"""
+    )
+    total_files, total_bytes, embedded_files, failed_files = cur.fetchone()
     conn.close()
     return {
         "total_chunks": total_chunks or 0,
         "total_files": total_files or 0,
         "total_bytes": total_bytes or 0,
+        "embedded_files": embedded_files or 0,
+        "failed_files": failed_files or 0,
     }
 
 
@@ -479,19 +721,29 @@ def is_catalogued_path(path: str) -> bool:
 
 
 def upsert_file(file_hash: str, path: str, name: str, extension: str, category: str,
-                 collection: str, size_bytes: int, modified_at: str, embedded: bool):
-    conn = sqlite3.connect(DB_PATH)
+                 collection: str, size_bytes: int, modified_at: str, embedded: bool,
+                 mtime_ns: int | None = None, index_status: str = "catalogued",
+                 index_error: str | None = None, chunks_count: int | None = None,
+                 embedding_model: str | None = None):
+    """Create/update metadata while preserving the original public call shape."""
+    conn = _connect()
     conn.execute(
         """INSERT INTO files (file_hash, path, name, extension, category, collection,
-                               size_bytes, modified_at, embedded)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               size_bytes, modified_at, embedded, mtime_ns,
+                               index_status, index_error, chunks_count,
+                               embedding_model)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(file_hash) DO UPDATE SET
              path=excluded.path, name=excluded.name, extension=excluded.extension,
              category=excluded.category, collection=excluded.collection,
              size_bytes=excluded.size_bytes, modified_at=excluded.modified_at,
-             embedded=excluded.embedded""",
+             embedded=excluded.embedded, mtime_ns=excluded.mtime_ns,
+             index_status=excluded.index_status, index_error=excluded.index_error,
+             chunks_count=COALESCE(excluded.chunks_count, files.chunks_count),
+             embedding_model=COALESCE(excluded.embedding_model, files.embedding_model)""",
         (file_hash, path, name, extension, category, collection,
-         size_bytes, modified_at, int(embedded)),
+         size_bytes, modified_at, int(embedded), mtime_ns, index_status,
+         index_error, chunks_count, embedding_model),
     )
     conn.commit()
     conn.close()
@@ -517,7 +769,43 @@ def get_collections() -> list[dict]:
     return [{"name": name, "count": n} for name, n in rows]
 
 
-def get_recent_files(limit: int = 20, category: str | None = None, collection: str | None = None) -> list[dict]:
+def refresh_file_collections(classifier) -> dict[str, int]:
+    """Recompute derived AI-collection labels for every catalogued file.
+
+    Collection names are presentation metadata derived from a path, not user
+    data.  Keeping the database operation here avoids importing the indexer
+    (and therefore avoids a circular dependency), while accepting the small
+    pure classifier callback lets a newer GhostOS release safely repair rows
+    written by an older classifier.
+    """
+    conn = _connect()
+    try:
+        rows = conn.execute("SELECT path, collection FROM files").fetchall()
+        updates: list[tuple[str, str]] = []
+        for path, current_collection in rows:
+            collection = str(classifier(path) or "Other").strip() or "Other"
+            if collection != current_collection:
+                updates.append((collection, path))
+        if updates:
+            conn.executemany(
+                "UPDATE files SET collection = ? WHERE path = ?",
+                updates,
+            )
+            conn.commit()
+        return {"scanned": len(rows), "updated": len(updates)}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_recent_files(
+    limit: int = 20,
+    category: str | None = None,
+    collection: str | None = None,
+    offset: int = 0,
+) -> list[dict]:
     """
     category/collection are optional filters powering the "Files & Data"
     category tiles and AI Collections tiles on the frontend - clicking a
@@ -534,10 +822,11 @@ def get_recent_files(limit: int = 20, category: str | None = None, collection: s
         where.append("collection = ?")
         params.append(collection)
     where_clause = f"WHERE {' AND '.join(where)}" if where else ""
-    params.append(limit)
+    params.extend((limit, offset))
     cur = conn.execute(
-        f"""SELECT path, name, extension, category, size_bytes, modified_at
-           FROM files {where_clause} ORDER BY modified_at DESC LIMIT ?""",
+        f"""SELECT path, name, extension, category, size_bytes, modified_at,
+                  embedded, index_status, index_error, chunks_count
+           FROM files {where_clause} ORDER BY modified_at DESC LIMIT ? OFFSET ?""",
         params,
     )
     rows = cur.fetchall()
@@ -546,9 +835,54 @@ def get_recent_files(limit: int = 20, category: str | None = None, collection: s
         {
             "path": path, "name": name, "extension": ext, "category": category,
             "size_bytes": size_bytes, "modified_at": modified_at,
+            "embedded": bool(embedded), "index_status": index_status,
+            "index_error": index_error, "chunks_count": chunks_count or 0,
         }
-        for path, name, ext, category, size_bytes, modified_at in rows
+        for (
+            path, name, ext, category, size_bytes, modified_at,
+            embedded, index_status, index_error, chunks_count,
+        ) in rows
     ]
+
+
+def clear_file_index() -> dict:
+    """Delete rebuildable file metadata and chunks, preserving activity history."""
+    conn = _connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        chunks = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        files = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+        conn.execute("DELETE FROM chunks")
+        conn.execute("DELETE FROM files")
+        conn.commit()
+        return {"files": files, "chunks": chunks, "events": 0}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def clear_all_local_data() -> dict:
+    """Delete all user-derived index and timeline rows from the local database."""
+    conn = _connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        counts = {
+            "chunks": conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0],
+            "files": conn.execute("SELECT COUNT(*) FROM files").fetchone()[0],
+            "events": conn.execute("SELECT COUNT(*) FROM events").fetchone()[0],
+        }
+        conn.execute("DELETE FROM chunks")
+        conn.execute("DELETE FROM files")
+        conn.execute("DELETE FROM events")
+        conn.commit()
+        return counts
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def get_storage_breakdown() -> list[dict]:
@@ -580,33 +914,69 @@ def get_storage_breakdown() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def add_event(event_type: str, title: str, subtitle: str, app_label: str,
-              badge_type: str, path_or_url: str, timestamp: str):
+              badge_type: str, path_or_url: str, timestamp: str,
+              event_key: str | None = None):
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
-        """INSERT INTO events (event_type, title, subtitle, app_label, badge_type,
-                                path_or_url, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (event_type, title, subtitle, app_label, badge_type, path_or_url, timestamp),
+        """INSERT OR IGNORE INTO events
+               (event_type, title, subtitle, app_label, badge_type,
+                path_or_url, timestamp, event_key)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (event_type, title, subtitle, app_label, badge_type, path_or_url, timestamp, event_key),
     )
     conn.commit()
     conn.close()
 
 
-def get_timeline(date_prefix: str | None = None, limit: int = 200) -> list[dict]:
-    """date_prefix like '2024-05-14' filters to that day; None returns most recent."""
-    conn = sqlite3.connect(DB_PATH)
+def get_timeline(
+    date_prefix: str | None = None,
+    limit: int = 200,
+    event_kind: str | None = None,
+    *,
+    kind: str | None = None,
+) -> list[dict]:
+    """Return Timeline events, optionally restricted to one honest UI category.
+
+    ``event_kind`` and ``kind`` are equivalent aliases. Categories are derived
+    from the event source rather than titles or badges: ``app_focus`` is Apps,
+    ``file_*`` is Documents, ``browser_*`` is Web, and everything else is
+    System. A dated query remains oldest-first; the undated feed is newest-first.
+    """
+    selected_kind = normalize_timeline_event_kind(event_kind, kind=kind)
+    bounded_limit = min(max(int(limit), 1), 5000)
+
+    conditions: list[str] = []
+    params: list[object] = []
     if date_prefix:
-        cur = conn.execute(
-            """SELECT event_type, title, subtitle, app_label, badge_type, path_or_url, timestamp
-               FROM events WHERE timestamp LIKE ? ORDER BY timestamp ASC LIMIT ?""",
-            (f"{date_prefix}%", limit),
+        conditions.append("timestamp LIKE ?")
+        params.append(f"{date_prefix}%")
+
+    if selected_kind == "apps":
+        conditions.append("event_type = ?")
+        params.append("app_focus")
+    elif selected_kind == "documents":
+        conditions.append("event_type GLOB ?")
+        params.append("file_*")
+    elif selected_kind == "web":
+        conditions.append("event_type GLOB ?")
+        params.append("browser_*")
+    elif selected_kind == "system":
+        conditions.append(
+            "NOT (COALESCE(event_type, '') = ? "
+            "OR COALESCE(event_type, '') GLOB ? "
+            "OR COALESCE(event_type, '') GLOB ?)"
         )
-    else:
-        cur = conn.execute(
-            """SELECT event_type, title, subtitle, app_label, badge_type, path_or_url, timestamp
-               FROM events ORDER BY timestamp DESC LIMIT ?""",
-            (limit,),
-        )
+        params.extend(("app_focus", "file_*", "browser_*"))
+
+    where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+    direction = "ASC" if date_prefix else "DESC"
+    params.append(bounded_limit)
+    conn = _connect()
+    cur = conn.execute(
+        f"""SELECT event_type, title, subtitle, app_label, badge_type, path_or_url, timestamp
+            FROM events{where_clause} ORDER BY timestamp {direction} LIMIT ?""",
+        params,
+    )
     rows = cur.fetchall()
     conn.close()
     return [

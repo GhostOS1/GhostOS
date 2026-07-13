@@ -1,5 +1,8 @@
 # GhostOS private/local data
 ghostos_memory.db
+ghostos_settings.json
+ghostos_insights_state.json
+ghostos_browser_state.json
 *.db-wal
 *.db-shm
 

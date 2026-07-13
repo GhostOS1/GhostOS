@@ -25,10 +25,11 @@ from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from indexer import process_file, FileProcessResult, init_db, SUPPORTED_EXTENSIONS
+from indexer import process_file, FileProcessResult, init_db
 from vectorstore import get_stats, remove_source
-from browser_connector import sync_browser_history
-from activity_tracker import start_activity_tracker
+from browser_connector import sync_browser_history, wait_for_browser_writes
+from activity_tracker import pause_activity_tracker, start_activity_tracker
+from settings_store import get_settings
 
 BROWSER_SYNC_INTERVAL_SECONDS = 120  # how often to re-check browser history
 
@@ -48,6 +49,31 @@ _handler = None
 _watched_folders: list[str] = []
 _browser_thread_started = False
 _state_lock = threading.Lock()
+_collector_operation_lock = threading.Lock()
+_collectors_paused = threading.Event()
+
+
+def _is_user_excluded(path: str | Path) -> bool:
+    try:
+        candidate = Path(path).resolve(strict=False)
+    except (OSError, RuntimeError):
+        return True
+    try:
+        # Lazy import avoids the connect_system -> watcher module cycle while
+        # keeping watcher events on the exact same dependency/cache policy as
+        # the initial walk.
+        from connect_system import EXCLUDED_DIR_NAMES
+        if any(part.casefold() in EXCLUDED_DIR_NAMES for part in candidate.parts):
+            return True
+    except ImportError:
+        pass
+    for configured in get_settings().get("excluded_folders", []):
+        try:
+            candidate.relative_to(Path(configured).expanduser().resolve(strict=False))
+            return True
+        except (ValueError, OSError, RuntimeError):
+            continue
+    return False
 
 
 class DebouncedHandler(FileSystemEventHandler):
@@ -63,11 +89,8 @@ class DebouncedHandler(FileSystemEventHandler):
 
     def _schedule(self, path: str):
         p = Path(path)
-        if not p.is_file():
+        if not p.is_file() or _is_user_excluded(p):
             return
-        if p.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            return
-
         with self._lock:
             existing = self._pending.get(path)
             if existing:
@@ -80,11 +103,18 @@ class DebouncedHandler(FileSystemEventHandler):
         with self._lock:
             self._pending.pop(path, None)
 
-        status, chunks_added = process_file(path)
+        if _collectors_paused.is_set() or _is_user_excluded(path):
+            return
+        with _collector_operation_lock:
+            if _collectors_paused.is_set():
+                return
+            status, chunks_added = process_file(path)
         if status == FileProcessResult.PROCESSED:
             print(f"[watcher] indexed: {path} (+{chunks_added} chunks)")
         elif status == FileProcessResult.SENSITIVE:
             print(f"[watcher] skipped (sensitive path): {path}")
+        elif status == FileProcessResult.FAILED:
+            print(f"[watcher] indexing failed: {path}")
         # ALREADY_INDEXED / UNSUPPORTED / EMPTY -> silent, not worth logging every time
 
     def on_created(self, event):
@@ -96,22 +126,40 @@ class DebouncedHandler(FileSystemEventHandler):
             self._schedule(event.src_path)
 
     def on_deleted(self, event):
-        if not event.is_directory:
-            remove_source(event.src_path)
+        if not event.is_directory and not _collectors_paused.is_set():
+            with _collector_operation_lock:
+                if not _collectors_paused.is_set():
+                    remove_source(event.src_path)
             print(f"[watcher] removed deleted file: {event.src_path}")
 
     def on_moved(self, event):
-        if not event.is_directory:
-            remove_source(event.src_path)
+        if not event.is_directory and not _collectors_paused.is_set():
+            with _collector_operation_lock:
+                if not _collectors_paused.is_set():
+                    remove_source(event.src_path)
             self._schedule(event.dest_path)
+
+    def cancel_pending(self) -> None:
+        with self._lock:
+            for timer in self._pending.values():
+                timer.cancel()
+            self._pending.clear()
 
 
 def _browser_sync_loop():
     """Runs in its own thread, periodically pulling new browser history
     into memory alongside the file watcher."""
     while True:
+        if _collectors_paused.is_set() or not get_settings().get("browser_history_enabled", True):
+            time.sleep(BROWSER_SYNC_INTERVAL_SECONDS)
+            continue
         try:
-            result = sync_browser_history()
+            result = None if _collectors_paused.is_set() else sync_browser_history(
+                cancel_event=_collectors_paused
+            )
+            if result is None:
+                time.sleep(BROWSER_SYNC_INTERVAL_SECONDS)
+                continue
             if result["entries_added"] > 0:
                 print(f"[browser] synced: +{result['entries_added']} new visits "
                       f"from {result['browsers_found']} "
@@ -132,6 +180,7 @@ def watch_folders(folders: list[str]) -> dict:
     handler (which is exactly how core/connect_system.py uses it).
     """
     global _observer, _handler, _browser_thread_started
+    _collectors_paused.clear()
     init_db()
     start_activity_tracker()
 
@@ -166,12 +215,26 @@ def stop_watcher():
     """Optional cleanup hook - not required for the Flask dev server
     (daemon threads die with the process), but useful for tests/scripts
     that want a clean shutdown."""
-    global _observer
+    global _observer, _handler
     with _state_lock:
         if _observer:
             _observer.stop()
             _observer.join()
             _observer = None
+        if _handler:
+            _handler.cancel_pending()
+            _handler = None
+        _watched_folders.clear()
+
+
+def pause_collectors() -> None:
+    """Stop file watching and pause browser/activity writes until reconnect."""
+    _collectors_paused.set()
+    pause_activity_tracker()
+    stop_watcher()
+    with _collector_operation_lock:
+        pass
+    wait_for_browser_writes()
 
 
 if __name__ == "__main__":

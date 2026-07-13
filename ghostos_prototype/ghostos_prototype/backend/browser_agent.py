@@ -1,18 +1,13 @@
-"""
-agents/browser_agent.py
-Browser Agent - doesn't hit the network or the DB itself. It pulls the
-browser-history hits back out of Memory Agent's search results so they
-can be labeled as "recently visited" in the context instead of looking
-like a regular indexed file. browser_connector.py stores visited pages as
-chunks in the same vectorstore table as files (see vectorstore.py),
-tagged with source_type='browser_history_<browser>' - this just filters
-for that tag.
+"""Select historical browser results from Memory Agent retrieval.
 
-Note (see the honest audit): this agent still only sees browsing
-*history*. Tabs, bookmarks, downloads, form data, and sessions - the
-richer "Better Browser Intelligence" scope from the roadmap - aren't
-implemented; that would require a live browser extension/CDP connection,
-not just reading the History sqlite file.
+``browser_connector.py`` indexes Chrome/Edge history, bookmarks, and
+downloads under the established ``browser_history_`` routing namespace;
+their structured content/source-type suffix keeps the real record kind clear.
+This lightweight agent only separates those results from local-file results.
+
+Live tabs are intentionally not claimed.  They still require an explicitly
+configured browser extension or local CDP provider implementing the interface
+in ``browser_intelligence.py``.
 """
 
 

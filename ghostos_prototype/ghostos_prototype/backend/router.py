@@ -19,6 +19,8 @@ design - classify_intent() stays a pure function of the message text
 alone. app.py applies that stateful override after calling classify_intent.
 """
 
+import re
+
 from files_agent import detect_folder, looks_like_exact_file_lookup
 from timeline_agent import wants_timeline
 from system_agent import wants_system_info
@@ -39,8 +41,17 @@ FILE_INTENT_KEYWORDS = {
     "recent", "indexed", "invoice", "note", "notes", "meeting", "email", "browser",
     "history", "visited", "syllabus", "resume", "project", "photo", "photos", "image",
     "images", "video", "videos", "spreadsheet", "excel", "presentation", "slides",
-    "summarize", "summary",
+    "summarize", "summary", "folder", "directory", "page", "website",
+    "site", "link", "url",
 }
+
+PERSONAL_RECALL_PATTERNS = (
+    re.compile(r"\bwhat did i (?:write|read|see|visit|open|work on)\b"),
+    re.compile(r"\bdid i (?:write|read|see|visit|open|work on)\b"),
+    re.compile(r"\b(?:remind me|do you remember|remember when|we discussed|i said|i wrote|i read|i saw)\b"),
+    re.compile(r"\b(?:that|the|my) (?:blog|article|topic|thing|page) about\b"),
+    re.compile(r"\bwhat was that (?:blog|article|topic|thing|page)\b"),
+)
 
 GREETING_REPLIES = [
     "Hey! How can I help you today?",
@@ -49,6 +60,25 @@ GREETING_REPLIES = [
     "Hey, good to see you. What are we working on?",
 ]
 THANKS_REPLIES = ["You're welcome!", "Anytime!", "Glad I could help.", "No problem at all."]
+
+
+def _contains_term(text: str, term: str) -> bool:
+    """Match intent terms as words/phrases, not arbitrary substrings."""
+    return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text) is not None
+
+
+def _matches_small_talk(text: str, phrases: set[str], *, allow_suffix: bool = False) -> bool:
+    """Recognize short standalone small talk without swallowing requests.
+
+    ``startswith`` previously classified ``hey find report.pdf`` as a
+    greeting.  The two benign suffixes cover natural greetings while a
+    message containing an actual task continues through the router.
+    """
+    if text in phrases:
+        return True
+    if not allow_suffix:
+        return False
+    return any(text in {f"{phrase} there", f"{phrase} ghostos"} for phrase in phrases)
 FAREWELL_REPLIES = ["See you later!", "Goodbye — reach out anytime.", "Take care!"]
 
 
@@ -62,26 +92,30 @@ def classify_intent(message: str) -> str:
     structured request never falls through to an unnecessary embedding
     call.
     """
-    text = message.strip().lower().strip("!.,?")
+    text = " ".join(message.casefold().strip().strip("!.,?").split())
     if not text:
         return "greeting"
     word_count = len(text.split())
 
-    if word_count <= 4 and (text in GREETING_WORDS or any(text.startswith(g) for g in GREETING_WORDS)):
+    if word_count <= 4 and _matches_small_talk(text, GREETING_WORDS, allow_suffix=True):
         return "greeting"
-    if word_count <= 6 and any(text == t or text.startswith(t) for t in THANKS_WORDS):
+    if word_count <= 6 and _matches_small_talk(text, THANKS_WORDS):
         return "thanks"
-    if word_count <= 3 and (text in FAREWELL_WORDS or any(text.startswith(f) for f in FAREWELL_WORDS)):
+    if word_count <= 3 and _matches_small_talk(text, FAREWELL_WORDS):
         return "farewell"
 
-    if wants_timeline(text):
-        return "timeline_query"
-    if detect_folder(text):
-        return "folder_query"
+    # Retrieval precedence mirrors the real pipeline: explicit filename /
+    # path, then structured folder, then broader activity/content search.
     if looks_like_exact_file_lookup(text):
         return "exact_file_query"
+    if detect_folder(text):
+        return "folder_query"
+    if wants_timeline(text):
+        return "timeline_query"
     if wants_system_info(text):
         return "system_query"
-    if any(kw in text for kw in FILE_INTENT_KEYWORDS):
+    if any(pattern.search(text) for pattern in PERSONAL_RECALL_PATTERNS):
+        return "semantic_query"
+    if any(_contains_term(text, kw) for kw in FILE_INTENT_KEYWORDS):
         return "semantic_query"
     return "general"
