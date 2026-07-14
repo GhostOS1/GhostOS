@@ -128,7 +128,7 @@ flowchart LR
    ```
 2. **Clone the repo** and set up a virtual environment:
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/GhostOS1/GhostOS.git
    cd ghostos_prototype/ghostos_prototype
    python -m venv .venv
    .venv\Scripts\activate      # Windows
