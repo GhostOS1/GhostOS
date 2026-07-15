@@ -191,7 +191,7 @@ flowchart LR
 
 ## 10. Demo Video
 
-📺 [Watch the demo video](https://drive.google.com/file/d/1EbN_XCo3a1NEoPdFSx7FRKKXZkXu9LFn/view?usp=sharing)
+📺 [Watch the demo video](https://drive.google.com/file/d/1sPVpDJCWj4lD2BJ30ri30hHasupe7F47/view)
 
 ## 11. Screenshots
 
